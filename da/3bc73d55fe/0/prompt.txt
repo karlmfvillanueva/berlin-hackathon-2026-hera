@@ -1,0 +1,15 @@
+Can you do research on these, and add it as a HERA.md file here. I want it as context that AI agents would already know the documnetation (waht we can do etc) here
+
+- MCP Reference: https://docs.hera.video/mcp-server
+- API Reference: https://docs.hera.video/api-reference/introduction
+- Hera App: https://app.hera.video/
+
+After this, also add it to the CLAUDE.md that references the hera.md
+
+---
+
+Yes, agree on all. app might be gated but just check api and mcp docs. so basically i want that you use web search and context7 to learn as much as possible about hera, and put it all here locally. claude.md just points to the docs, but i want the documentation all written locally here
+
+---
+
+Yes, agree on all. app might be gated but just check api and mcp docs. so basically i want that you use web search and context7 to learn as much as possible about hera, and put it all here locally. claude.md just points to the docs, but i want the documentation all written locally here. yes add example payloads
