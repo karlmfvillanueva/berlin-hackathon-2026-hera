@@ -1,0 +1,14 @@
+Launch the product manager agent to help me run the specs just for the MVP. The idea is basically
+- input airbnb url
+- extract data from airbnb url (images, attributes)
+- create a video script
+- use Hera API / MCP to generate the video
+- generate the video
+
+---
+
+1 = A
+2 = Vertical for now, around 15s for airbnb (these are variable but not from mvp scope)
+3 = yes playwright for now and then let's figure out other steps later
+
+minimal time budget, let's srpint for MVP
