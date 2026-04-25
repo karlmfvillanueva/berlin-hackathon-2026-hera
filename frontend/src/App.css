@@ -1,0 +1,110 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  background: #0e0e10;
+  color: #e8e8e8;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.muted {
+  margin: 0 0 28px;
+  color: #8a8a8a;
+  font-size: 13px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+label {
+  font-size: 13px;
+  color: #b0b0b0;
+}
+
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  background: #1c1c1f;
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #4a4a4a;
+}
+
+button {
+  align-self: flex-start;
+  padding: 8px 16px;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  background: #2a2a2a;
+  color: #e8e8e8;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #333;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.job {
+  margin-top: 28px;
+  padding: 16px;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.job .label {
+  display: inline-block;
+  width: 80px;
+  color: #8a8a8a;
+  font-size: 13px;
+}
+
+.job code {
+  font-size: 12px;
+  color: #d0d0d0;
+}
+
+.output {
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 4px;
+}
+
+.error {
+  margin-top: 16px;
+  color: #d97a7a;
+  font-size: 13px;
+}
