@@ -3,10 +3,16 @@
   "checkpoint_id": "26020c4909a0",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
+    "CHANGELOG.md",
     "CLAUDE.md",
-    "HERA.md"
+    "HERA.md",
+    "backend/pyproject.toml",
+    "backend/scripts/probe_hera.py",
+    "backend/src/main.py",
+    "backend/uv.lock",
+    "hera-video-hackathon.pen"
   ],
   "sessions": [
     {
@@ -14,13 +20,19 @@
       "transcript": "/26/020c4909a0/0/full.jsonl",
       "content_hash": "/26/020c4909a0/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/26/020c4909a0/1/metadata.json",
+      "transcript": "/26/020c4909a0/1/full.jsonl",
+      "content_hash": "/26/020c4909a0/1/content_hash.txt",
+      "prompt": "/26/020c4909a0/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1656,
-    "cache_creation_tokens": 10175,
-    "cache_read_tokens": 170851,
-    "output_tokens": 8693,
-    "api_call_count": 2
+    "input_tokens": 1681,
+    "cache_creation_tokens": 99664,
+    "cache_read_tokens": 980550,
+    "output_tokens": 14437,
+    "api_call_count": 13
   }
 }
