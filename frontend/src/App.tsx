@@ -166,7 +166,7 @@ export default function App() {
               Here's what we found.
             </h2>
             <p className="text-[14px] font-normal text-[#666666] leading-[1.4] max-w-[640px] m-0">
-              Our agent scraped the listing and picked these attributes. Approve each card or edit before we generate.
+              ICP + location agents read the listing. Review signals below, then continue to Hera.
             </p>
           </div>
 
@@ -179,8 +179,18 @@ export default function App() {
               <span className="line-clamp-3">{state.listing.location}</span>
             </AttributeCard>
 
-            <AttributeCard label="VIBES / TAGS">
-              <span className="line-clamp-3">{state.decision.vibes}</span>
+            <AttributeCard label="BEST ICP">
+              <span className="line-clamp-3">
+                {String(
+                  (state.decision.icp as { best_icp?: { persona?: string } })?.best_icp
+                    ?.persona ?? "",
+                )}
+                {(() => {
+                  const score = (state.decision.icp as { best_icp?: { fit_score?: number } })
+                    ?.best_icp?.fit_score;
+                  return score != null ? ` · fit ${score}` : "";
+                })()}
+              </span>
             </AttributeCard>
 
             <AttributeCard label={`HERO IMAGES (${state.decision.selected_image_urls.length})`}>
@@ -247,7 +257,7 @@ export default function App() {
             Generating your video...
           </h2>
           <p className="text-[15px] font-normal text-[#666666] leading-[1.4] max-w-[560px] text-center m-0">
-            Our agent is making editorial calls (hook, pacing, emphasis). Hang tight.
+            Hera is rendering from your ICP + location brief. Hang tight.
           </p>
 
           <div className="w-[520px] bg-white border border-black p-6 flex flex-col gap-4">
@@ -257,7 +267,7 @@ export default function App() {
             />
             <StatusRow
               state={scriptStep >= 2 ? "done" : scriptStep === 1 ? "active" : "pending"}
-              label="Drafted script with hook + pacing"
+              label="Brief sent to Hera (ICP + location)"
             />
             <StatusRow
               state="active"
@@ -287,7 +297,7 @@ export default function App() {
             <div className="flex flex-col gap-1.5">
               <span className="text-[26px] font-bold text-black">Your video</span>
               <span className="text-[13px] font-normal text-[#666666]">
-                15s · 1080p · 9:16 · MP4
+                {state.decision.duration_seconds}s · 1080p · 9:16 · MP4
               </span>
             </div>
 

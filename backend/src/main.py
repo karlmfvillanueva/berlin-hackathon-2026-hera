@@ -4,6 +4,7 @@ Hera reference: https://docs.hera.video/api-reference/introduction
 The frontend never sees HERA_API_KEY — it stays on the server.
 """
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from typing import Literal
@@ -81,7 +82,7 @@ class VideoOutputConfig(BaseModel):
 
 
 class CreateVideoBody(BaseModel):
-    prompt: str = Field(..., min_length=1, max_length=2000)
+    prompt: str = Field(..., min_length=1, max_length=12000)
     duration_seconds: int | None = Field(default=None, ge=1, le=60)
     outputs: list[VideoOutputConfig] = Field(
         default_factory=lambda: [
@@ -139,7 +140,7 @@ class ListingRequest(BaseModel):
 
 @app.post("/api/listing", response_model=ListingResponse)
 async def get_listing(body: ListingRequest) -> ListingResponse:
-    """Load a fixture listing and run the agent to produce an AgentDecision."""
+    """Load a fixture listing and run the 4-agent pipeline; return ``AgentDecision``."""
     listing = load_fixture(body.listing_url)
     if listing is None:
         log.warning("listing: fixture not found for url=%s", body.listing_url)
@@ -151,28 +152,47 @@ async def get_listing(body: ListingRequest) -> ListingResponse:
             },  # noqa: E501
         )
     try:
-        decision = run(listing)
+        decision = await asyncio.to_thread(run, listing)
     except Exception as exc:
-        log.exception("listing: classifier failed")
+        log.exception("listing: agent pipeline failed")
         raise HTTPException(
             status_code=500,
-            detail={"error": "classifier_failed", "message": str(exc)},
+            detail={"error": "listing_agent_failed", "message": str(exc)},
         ) from exc
     return ListingResponse(listing=listing, decision=decision)
 
 
 @app.post("/api/generate", response_model=GenerateResponse)
 async def generate_video(body: GenerateRequest) -> GenerateResponse:
-    """Submit a Hera video job using a pre-computed AgentDecision."""
+    """Submit a Hera video job using a server-computed AgentDecision."""
+    listing = load_fixture(body.listing_url)
+    if listing is None:
+        log.warning("generate: fixture not found for url=%s", body.listing_url)
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "fixture_not_found",
+                "message": f"No fixture for URL: {body.listing_url}",
+            },
+        )
+    try:
+        decision = await asyncio.to_thread(run, listing)
+    except Exception as exc:
+        log.exception("generate: agent pipeline failed")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "listing_agent_failed", "message": str(exc)},
+        ) from exc
+
     payload = {
-        "prompt": body.decision.hera_prompt,
-        "duration_seconds": 15,
+        "prompt": decision.hera_prompt,
+        "duration_seconds": decision.duration_seconds,
         "outputs": [{"format": "mp4", "aspect_ratio": "9:16", "fps": "30", "resolution": "1080p"}],
-        "reference_image_urls": body.decision.selected_image_urls[:5],
+        "reference_image_urls": decision.selected_image_urls[:5],
     }
     log.info(
         "generate: submitting to Hera. prompt_chars=%d images=%d",
-        len(body.decision.hera_prompt),
+        len(decision.hera_prompt),
         len(payload["reference_image_urls"]),
     )
     try:
@@ -193,7 +213,7 @@ async def generate_video(body: GenerateRequest) -> GenerateResponse:
 
     video_id = r.json()["video_id"]
     log.info("generate: Hera accepted job video_id=%s", video_id)
-    return GenerateResponse(video_id=video_id, decision=body.decision)
+    return GenerateResponse(video_id=video_id, decision=decision)
 
 
 @app.get("/api/videos/{video_id}", response_model=GetVideoResponse)

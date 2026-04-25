@@ -9,12 +9,14 @@ export type ScrapedListing = {
   bedrooms_sleeps: string;
 };
 
+/** Full pipeline output: five prerequisite agents + Final Assembly (Strategic Opinion) prompt. */
 export type AgentDecision = {
-  vibes: string;
-  hook: string;
-  pacing: string;
-  angle: string;
-  background: string;
+  icp: Record<string, unknown>;
+  location_enrichment: Record<string, unknown>;
+  reviews_evaluation: Record<string, unknown>;
+  visual_system: Record<string, unknown>;
+  photo_analysis: Record<string, unknown>;
+  duration_seconds: number;
   selected_image_urls: string[];
   hera_prompt: string;
 };

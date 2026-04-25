@@ -32,7 +32,7 @@ export function UrlInput({ onSubmit, loading }: UrlInputProps) {
         Turn an Airbnb listing into a 15-second video.
       </h1>
       <p className="text-[16px] font-normal leading-[1.4] text-[#555555] text-center max-w-[640px]">
-        Paste a link. Our agent picks the hook, the angle, and the pacing.
+        Paste a link. We classify the highest-converting guest (ICP) and enrich location for the brief.
       </p>
 
       <div className="flex gap-3 w-[720px] h-16">
