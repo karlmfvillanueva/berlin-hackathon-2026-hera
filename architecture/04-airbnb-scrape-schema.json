@@ -1,0 +1,790 @@
+{
+  "$schema": "internal://hera/airbnb-scrape-schema.v1",
+  "meta": {
+    "title": "Airbnb listing properties scrapable via Playwright",
+    "purpose": "Reference for what we can pull from a single Airbnb listing PDP, so the team can plan which fields the agent uses as input.",
+    "verified_against": "https://www.airbnb.de/rooms/36276450 (de_DE locale, 2026-04-25)",
+    "primary_source": "Embedded JSON blob in <script id=\"data-deferred-state-0\" type=\"application/json\"> on the initial HTML response. Contains the full Niobe/Apollo cache for the StaysPdpSections GraphQL query.",
+    "secondary_sources": [
+      "JSON-LD scripts (schema.org VacationRental + Product) in <head>",
+      "Open Graph / Twitter meta tags",
+      "Visible DOM (data-section-id=\"...\" containers) for derived display strings",
+      "Modal dialogs opened via clicks (price breakdown, full reviews, full house rules)"
+    ],
+    "cost_legend": {
+      "free": "Available in the initial HTML, no clicks/extra requests needed.",
+      "modal_click": "Requires opening a Playwright-clickable modal once.",
+      "paginated": "Requires repeated scrolling or paginated GraphQL calls.",
+      "not_available": "Not exposed by Airbnb on the public PDP."
+    },
+    "locale_note": "All German labels come from the de_DE locale. Switching locale (e.g. /rooms/<id>?locale=en) returns the same fields with English labels. IDs and URLs are locale-stable.",
+    "auth_note": "All fields below are available unauthenticated. Logged-in features (wishlists, message-host UI, personalized prices) require a session cookie."
+  },
+  "groups": {
+    "core_identifiers": {
+      "description": "Stable identifiers for the listing.",
+      "fields": {
+        "listing_id": {
+          "type": "string",
+          "example": "36276450",
+          "source": "URL path (/rooms/<id>) and node.identifier b64-decoded",
+          "cost": "free",
+          "notes": "Public, stable. Use this as primary key."
+        },
+        "graphql_node_id": {
+          "type": "string (base64)",
+          "example": "RGVtYW5kU3RheUxpc3Rpbmc6MzYyNzY0NTA=",
+          "source": "data-deferred-state-0 -> node.identifier",
+          "cost": "free",
+          "notes": "Decodes to 'DemandStayListing:36276450'. Required if hitting the GraphQL API directly."
+        },
+        "url_canonical": {
+          "type": "string",
+          "example": "https://www.airbnb.de/rooms/36276450",
+          "source": "<meta property=\"og:url\">",
+          "cost": "free"
+        }
+      }
+    },
+
+    "title_and_property_type": {
+      "description": "Short headline data shown in cards and the page header.",
+      "fields": {
+        "title": {
+          "type": "string",
+          "example": "Eine ruhige kleine Ecke im Herzen von Paris",
+          "source": "TITLE_DEFAULT section + JSON-LD .name + h1",
+          "cost": "free",
+          "notes": "Often auto-translated from host's original language. Translation toggle is detectable via UGC_TRANSLATION section."
+        },
+        "is_auto_translated": {
+          "type": "boolean",
+          "example": true,
+          "source": "presence of 'Automatisch übersetzter Titel' button + UGC_TRANSLATION section",
+          "cost": "free"
+        },
+        "property_type_localized": {
+          "type": "string",
+          "example": "Privatzimmer in Eigentumswohnung",
+          "source": "pdpPresentation.sharingConfig.propertyType",
+          "cost": "free"
+        },
+        "room_type_summary": {
+          "type": "string",
+          "example": "Zimmer in Paris, Frankreich",
+          "source": "OVERVIEW_DEFAULT_V2 section innerText",
+          "cost": "free"
+        },
+        "is_guest_favorite": {
+          "type": "boolean",
+          "example": true,
+          "source": "node.pdpPresentation.quality.isGuestFavorite + GUEST_FAVORITE_BANNER",
+          "cost": "free"
+        },
+        "is_new_listing": {
+          "type": "boolean",
+          "example": false,
+          "source": "node.pdpPresentation.quality.isNewListing",
+          "cost": "free"
+        },
+        "is_luxe": {
+          "type": "boolean",
+          "example": false,
+          "source": "node.isLuxe",
+          "cost": "free"
+        },
+        "is_hotel": {
+          "type": "boolean",
+          "example": false,
+          "source": "node.isHotelPropertyEnabled",
+          "cost": "free"
+        }
+      }
+    },
+
+    "capacity": {
+      "description": "Sleeping arrangement and headcount.",
+      "fields": {
+        "person_capacity": {
+          "type": "integer",
+          "example": 1,
+          "source": "node.pdpPresentation.personCapacity",
+          "cost": "free"
+        },
+        "overview_items": {
+          "type": "string[]",
+          "example": ["1 Einzelbett", "Gemeinsam genutztes Bad"],
+          "source": "node.pdpPresentation.overview.items",
+          "cost": "free",
+          "notes": "Free-text bullets, locale-dependent. Parse for bedroom/bath counts if needed."
+        },
+        "sleeping_arrangements": {
+          "type": "object[]",
+          "example": [{"room": "Schlafzimmer", "beds": "1 Einzelbett", "image_urls": ["..."]}],
+          "source": "SLEEPING_ARRANGEMENT_WITH_IMAGES section",
+          "cost": "free",
+          "notes": "Per-room breakdown with bed types and (optional) photo IDs."
+        }
+      }
+    },
+
+    "location": {
+      "description": "Geographic and neighborhood info.",
+      "fields": {
+        "lat": {
+          "type": "float",
+          "example": 48.85286,
+          "source": "LOCATION_DEFAULT.lat + JSON-LD .latitude",
+          "cost": "free",
+          "notes": "Approximate. Airbnb fuzzes the marker before booking; map_marker_radius_in_meters tells you how much."
+        },
+        "lng": {
+          "type": "float",
+          "example": 2.35036,
+          "source": "LOCATION_DEFAULT.lng",
+          "cost": "free"
+        },
+        "map_marker_radius_in_meters": {
+          "type": "integer | null",
+          "example": null,
+          "source": "LOCATION_DEFAULT.mapMarkerRadiusInMeters",
+          "cost": "free"
+        },
+        "city_locality": {
+          "type": "string",
+          "example": "Paris",
+          "source": "JSON-LD .address.addressLocality",
+          "cost": "free"
+        },
+        "address_subtitle": {
+          "type": "string",
+          "example": "Paris, Île-de-France, Frankreich",
+          "source": "LOCATION_DEFAULT.subtitle",
+          "cost": "free"
+        },
+        "exact_street_address": {
+          "type": "string | null",
+          "example": null,
+          "source": "—",
+          "cost": "not_available",
+          "notes": "Disclosed only after booking. The PDP shows verified-area only."
+        },
+        "neighborhood_highlights": {
+          "type": "string",
+          "example": "Kleine charmante Cafés, Grünflächen, Seine-Ufer für Spaziergänge und Picknicks. In der Nähe der großen Pariser Museen!",
+          "source": "LOCATION_DEFAULT.seeAllLocationDetails (title='Highlights der Nachbarschaft')",
+          "cost": "free"
+        },
+        "getting_around": {
+          "type": "string (HTML)",
+          "example": "Métro, RER, Bus in der Nähe<br />Vélib-Station in der Nähe<br />In der Nähe von öffentlichen Verkehrsmitteln",
+          "source": "LOCATION_DEFAULT.seeAllLocationDetails (title='Unterwegs rund um die Unterkunft')",
+          "cost": "free"
+        },
+        "nearby_places": {
+          "type": "object[]",
+          "example": [{"category": "restaurants", "places": ["..."]}],
+          "source": "LOCATION_DEFAULT.nearbyPlaces + categoricalNearbyPlacesSheet",
+          "cost": "free",
+          "notes": "Curated POIs (restaurants, attractions). Not always populated."
+        }
+      }
+    },
+
+    "description": {
+      "description": "Long-form host-written description.",
+      "fields": {
+        "description_intro": {
+          "type": "string",
+          "example": "Historisches und malerisches Viertel im Zentrum von Paris. ...",
+          "source": "DESCRIPTION_MODAL.items[0].html.htmlText",
+          "cost": "free"
+        },
+        "description_the_space": {
+          "type": "string",
+          "example": "Helle und geräumige Altbauwohnung. Großes Wohnzimmer ...",
+          "source": "DESCRIPTION_MODAL.items where title='Die Unterkunft'",
+          "cost": "free"
+        },
+        "description_during_stay": {
+          "type": "string | null",
+          "example": "Ich bin sehr leicht zu erreichen für alle notwendigen Informationen oder Hilfe!",
+          "source": "DESCRIPTION_MODAL.items where title='Während deines Aufenthaltes'",
+          "cost": "free"
+        },
+        "description_other_notes": {
+          "type": "string | null",
+          "example": "Diskrete Anwesenheit einer Katze.",
+          "source": "DESCRIPTION_MODAL.items where title='Weitere wichtige Hinweise'",
+          "cost": "free"
+        },
+        "description_short": {
+          "type": "string",
+          "example": "Historisches und malerisches Viertel im Zentrum von Paris...",
+          "source": "node.pdpPresentation.descriptions.shortDescriptionHtml",
+          "cost": "free",
+          "notes": "Truncated version shown on the inline DESCRIPTION_DEFAULT section."
+        }
+      }
+    },
+
+    "highlights": {
+      "description": "AI- and curation-driven badges shown above the fold.",
+      "fields": {
+        "highlights": {
+          "type": "object[]",
+          "example": [
+            {"title": "Gehört zu den obersten 1 % der Unterkünfte", "subtitle": "Diese Unterkunft gehört zu denjenigen, die aufgrund ihrer Bewertungen ..."},
+            {"title": "Großartige Check-in-Erfahrung", "subtitle": "Aktuelle Gäste waren vom reibungslosen Beginn ihres Aufenthalts begeistert."}
+          ],
+          "source": "HIGHLIGHTS_DEFAULT.highlights",
+          "cost": "free",
+          "notes": "Each highlight has a localized title, subtitle, and an icon enum."
+        }
+      }
+    },
+
+    "amenities": {
+      "description": "Full amenity list grouped by category, including unavailable ones.",
+      "fields": {
+        "amenities_groups": {
+          "type": "object[]",
+          "example": [
+            {
+              "title": "Küche und Esszimmer",
+              "amenities": [
+                {"id": "pdp_v3_kitchen_dining_8_36276450-0", "title": "Küche", "subtitle": "Ort, an dem Gäste ihre eigenen Mahlzeiten zubereiten können", "available": true, "icon": "SYSTEM_KITCHEN"}
+              ]
+            }
+          ],
+          "source": "AMENITIES_DEFAULT.seeAllAmenitiesGroups",
+          "cost": "free",
+          "notes": "Includes ALL amenities (the inline preview shows only ~10). Each item has id, title, optional subtitle, available flag, and an icon enum. Unavailable amenities (like 'Klimaanlage', 'TV', 'CO-Melder') are explicitly listed under group 'Privatsphäre und Sicherheit' or 'Nicht verfügbar' depending on category."
+        },
+        "amenities_count": {
+          "type": "integer",
+          "example": 44,
+          "source": "Sum of seeAllAmenitiesGroups[*].amenities length",
+          "cost": "free"
+        },
+        "amenity_id_mapping": {
+          "type": "object",
+          "example": {"WIFI": "pdp_v3_internet_office_4", "KITCHEN": "pdp_v3_kitchen_dining_8"},
+          "source": "Pattern in amenity.id (pdp_v3_<group>_<airbnb_amenity_id>_<listing_id>-<idx>)",
+          "cost": "free",
+          "notes": "The middle integer is Airbnb's stable amenity catalog ID. Useful for cross-listing comparisons."
+        }
+      }
+    },
+
+    "media": {
+      "description": "Photos for the gallery + share/og images.",
+      "fields": {
+        "photos": {
+          "type": "object[]",
+          "example": [
+            {
+              "id": "896148135",
+              "base_url": "https://a0.muscache.com/im/pictures/78c5a6f4-590a-44bd-a25f-e8b2dbfed1eb.jpg",
+              "aspect_ratio": 0.75,
+              "orientation": "PORTRAIT",
+              "accessibility_label": "Gemeinsam genutztes Wohnzimmer Bild 1",
+              "preview_blurhash_png": "data:image/png;base64,..."
+            }
+          ],
+          "source": "PHOTO_TOUR_SCROLLABLE_MODAL.mediaItems",
+          "cost": "free",
+          "notes": "All photos available in the initial HTML even though the modal is closed. base_url is the original-resolution image; for thumbnails append ?im_w=720 / 1080 / etc. accessibility_label is room-typed (e.g. 'Schlafzimmer Bild 1'), useful for grouping by room without ML. Some photos live under /im/pictures/hosting/Hosting-<listing_id>/original/ — those are host-uploaded originals."
+        },
+        "photos_count": {
+          "type": "integer",
+          "example": 19,
+          "source": "PHOTO_TOUR_SCROLLABLE_MODAL.mediaItems.length",
+          "cost": "free"
+        },
+        "room_tour_layouts": {
+          "type": "object[] | null",
+          "example": null,
+          "source": "PHOTO_TOUR_SCROLLABLE_MODAL.roomTourLayoutInfos",
+          "cost": "free",
+          "notes": "On listings that have a 3D / virtual tour configured, this maps photoIds -> rooms. Often null."
+        },
+        "og_image_url": {
+          "type": "string",
+          "example": "https://a0.muscache.com/im/pictures/8e023fdc-590a-44bd-a25f-e8b2dbfed1eb.jpg",
+          "source": "<meta property=\"og:image\">",
+          "cost": "free"
+        },
+        "media_tour_stops": {
+          "type": "object[]",
+          "example": [{"name": "stop_1"}, {"name": "stop_2"}],
+          "source": "node.pdpPresentation.mediaTour.stops",
+          "cost": "free",
+          "notes": "Skeleton of a guided tour. On most listings, stop content is empty."
+        }
+      }
+    },
+
+    "ratings_and_reviews": {
+      "description": "Aggregate review data + AI summary tags. Full review corpus needs pagination.",
+      "fields": {
+        "rating_overall": {
+          "type": "float (0-5)",
+          "example": 4.94,
+          "source": "REVIEWS_DEFAULT.overallRating + JSON-LD .aggregateRating.ratingValue",
+          "cost": "free"
+        },
+        "reviews_count": {
+          "type": "integer",
+          "example": 617,
+          "source": "REVIEWS_DEFAULT.overallCount",
+          "cost": "free"
+        },
+        "rating_distribution": {
+          "type": "object[]",
+          "example": [{"stars": 5, "percentage": 0.94}, {"stars": 4, "percentage": 0.06}],
+          "source": "REVIEWS_DEFAULT.ratingDistribution",
+          "cost": "free"
+        },
+        "category_ratings": {
+          "type": "object[]",
+          "example": [
+            {"category": "CLEANLINESS", "label": "Sauberkeit", "rating": 4.9, "percentage": 0.98},
+            {"category": "ACCURACY", "label": "Genauigkeit der Angaben", "rating": 5.0, "percentage": 0.99},
+            {"category": "CHECKIN", "label": "Check-in", "rating": 4.9},
+            {"category": "COMMUNICATION", "label": "Kommunikation", "rating": 5.0},
+            {"category": "LOCATION", "label": "Lage", "rating": 5.0},
+            {"category": "VALUE", "label": "Preis-Leistungs-Verhältnis", "rating": 4.9}
+          ],
+          "source": "REVIEWS_DEFAULT.ratings",
+          "cost": "free"
+        },
+        "review_tags_ai": {
+          "type": "object[]",
+          "example": [
+            {"name": "LOCATION", "label": "Lage", "count": 420, "icon_url": "https://a0.muscache.com/.../481a6680-...png"},
+            {"name": "HOSPITALITY", "label": "Gastfreundschaft", "count": 444}
+          ],
+          "source": "REVIEWS_DEFAULT.reviewTags",
+          "cost": "free",
+          "notes": "AI-synthesized tags with mention counts. Excellent agent input — implies what guests consistently praise."
+        },
+        "is_quality_score_top_percentile": {
+          "type": "string",
+          "example": "1%",
+          "source": "REVIEWS_DEFAULT.qualityScorePercentile",
+          "cost": "free"
+        },
+        "reviews_inline_sample": {
+          "type": "object[]",
+          "example": [
+            {
+              "reviewer_first_name": "Claudia",
+              "reviewer_tenure": "Seit 7 Jahren auf Airbnb",
+              "rating": 5,
+              "created_at_label": "März 2026",
+              "stay_length_label": "Aufenthalt von einigen Nächten",
+              "comments": "1000 Dank liebe Carole, dass Sie meinen allerersten AirBNB Aufenthalt..."
+            }
+          ],
+          "source": "REVIEWS_DEFAULT section innerText (DOM)",
+          "cost": "free",
+          "notes": "Initial render shows the first 6 reviews. No reviewer photos or stable IDs in this layer."
+        },
+        "reviews_full_corpus": {
+          "type": "object[]",
+          "example": "[... up to 617 review objects with reviewer name+avatar+location, rating, language, comments, response_from_host, photos ...]",
+          "source": "Modal 'Alle 617 Bewertungen anzeigen' (REVIEWS_EMBEDDED_MODAL) + paginated GraphQL query StaysPdpReviewsQuery",
+          "cost": "paginated",
+          "notes": "Each scroll loads ~20 reviews. For ~600 reviews allow 30-60s of scrolling. Alternative: hit the underlying GraphQL endpoint directly with operationId for StaysPdpReviewsQuery."
+        }
+      }
+    },
+
+    "host": {
+      "description": "Host profile and contact metadata. No personal contact info.",
+      "fields": {
+        "host_first_name": {
+          "type": "string",
+          "example": "Carole",
+          "source": "MEET_YOUR_HOST.cardData.name",
+          "cost": "free",
+          "notes": "Last name never exposed publicly."
+        },
+        "host_user_id": {
+          "type": "string (base64)",
+          "example": "RGVtYW5kVXNlcjoyNzI4MzQ1ODM=",
+          "source": "MEET_YOUR_HOST.cardData.userId",
+          "cost": "free",
+          "notes": "Decodes to 'DemandUser:272834583'. Numeric ID is stable and used in /users/show/<id>."
+        },
+        "host_profile_picture_url": {
+          "type": "string",
+          "example": "https://a0.muscache.com/im/pictures/user/User-272834583/original/c0c9bbeb-65d5-48c2-9c07-5e50cebb7111.jpeg",
+          "source": "MEET_YOUR_HOST.cardData.profilePictureUrl",
+          "cost": "free"
+        },
+        "host_is_superhost": {
+          "type": "boolean",
+          "example": false,
+          "source": "MEET_YOUR_HOST.cardData.isSuperhost",
+          "cost": "free"
+        },
+        "host_is_verified": {
+          "type": "boolean",
+          "example": true,
+          "source": "MEET_YOUR_HOST.cardData.isVerified",
+          "cost": "free"
+        },
+        "host_time_as_host": {
+          "type": "object",
+          "example": {"years": 6, "months": 9},
+          "source": "MEET_YOUR_HOST.cardData.timeAsHost",
+          "cost": "free"
+        },
+        "host_review_count": {
+          "type": "integer",
+          "example": 617,
+          "source": "MEET_YOUR_HOST.cardData.ratingCount",
+          "cost": "free"
+        },
+        "host_rating_average": {
+          "type": "float",
+          "example": 4.94,
+          "source": "MEET_YOUR_HOST.cardData.ratingAverage",
+          "cost": "free"
+        },
+        "host_about": {
+          "type": "string",
+          "example": "",
+          "source": "MEET_YOUR_HOST.about",
+          "cost": "free",
+          "notes": "Often empty. The richer info is in hostHighlights below."
+        },
+        "host_highlights": {
+          "type": "string[]",
+          "example": [
+            "Wo ich zur Schule oder Uni gegangen bin: Ecole du Louvre, Paris",
+            "Das mache ich beruflich: Presse",
+            "Spricht Englisch und Italienisch",
+            "Lebt in Paris, Frankreich"
+          ],
+          "source": "MEET_YOUR_HOST.hostHighlights",
+          "cost": "free",
+          "notes": "Localized free-text bullets. Includes school, occupation, languages, residence, hosting style."
+        },
+        "host_response_rate": {
+          "type": "string (percentage)",
+          "example": "97 %",
+          "source": "MEET_YOUR_HOST.hostDetails (item title='Antwortrate')",
+          "cost": "free"
+        },
+        "host_response_time": {
+          "type": "string",
+          "example": "Antwortet innerhalb einer Stunde",
+          "source": "MEET_YOUR_HOST.hostDetails (item title='Antwortet ...')",
+          "cost": "free"
+        },
+        "host_cohosts": {
+          "type": "object[]",
+          "example": [],
+          "source": "MEET_YOUR_HOST.cohosts",
+          "cost": "free"
+        },
+        "host_is_business": {
+          "type": "boolean",
+          "example": false,
+          "source": "node.pdpPresentation.businessDetails.detailsHtml (parse for 'Privatperson' vs 'Unternehmen')",
+          "cost": "free"
+        },
+        "host_phone_or_email": {
+          "type": "string",
+          "example": null,
+          "source": "—",
+          "cost": "not_available",
+          "notes": "Never exposed. Only reachable via Airbnb's in-platform messaging after a booking enquiry."
+        }
+      }
+    },
+
+    "policies_and_rules": {
+      "description": "Check-in, house rules, safety, cancellation.",
+      "fields": {
+        "check_in_window": {
+          "type": "string",
+          "example": "Check-in ab 15:00",
+          "source": "POLICIES_DEFAULT.houseRulesSections (title='Check-in und Check-out')",
+          "cost": "free"
+        },
+        "check_out_time": {
+          "type": "string",
+          "example": "Check-out vor 11:00",
+          "source": "POLICIES_DEFAULT.houseRulesSections (title='Check-in und Check-out')",
+          "cost": "free"
+        },
+        "self_check_in_method": {
+          "type": "string | null",
+          "example": "Eigenständiger Check-in: Schlüsselbox",
+          "source": "POLICIES_DEFAULT.houseRulesSections",
+          "cost": "free"
+        },
+        "max_guests": {
+          "type": "integer",
+          "example": 1,
+          "source": "POLICIES_DEFAULT.houseRulesSections (item title 'Höchstens N Gast' parsed) + BOOK_IT_SIDEBAR.maxGuestCapacity",
+          "cost": "free"
+        },
+        "pets_allowed": {
+          "type": "boolean",
+          "example": false,
+          "source": "BOOK_IT_SIDEBAR.petsAllowed + POLICIES_DEFAULT 'Keine Haustiere' rule",
+          "cost": "free"
+        },
+        "parties_allowed": {
+          "type": "boolean",
+          "example": false,
+          "source": "POLICIES_DEFAULT 'Keine Partys oder Veranstaltungen'",
+          "cost": "free"
+        },
+        "smoking_allowed": {
+          "type": "boolean",
+          "example": false,
+          "source": "POLICIES_DEFAULT 'Rauchen verboten'",
+          "cost": "free"
+        },
+        "additional_house_rules": {
+          "type": "string",
+          "example": "...",
+          "source": "POLICIES_DEFAULT.additionalHouseRules",
+          "cost": "modal_click",
+          "notes": "Inline preview shows 'Zusätzliche Regeln' button; click opens modal with full text."
+        },
+        "safety_features": {
+          "type": "object[]",
+          "example": [
+            {"title": "Rauchmelder installiert", "icon": "SYSTEM_DETECTOR_SMOKE"},
+            {"title": "Kein Kohlenmonoxidmelder", "icon": "SYSTEM_NO_DETECTOR_CO2"}
+          ],
+          "source": "POLICIES_DEFAULT.safetyExpectationsAndAmenities (title='Sicherheitseinrichtungen')",
+          "cost": "free"
+        },
+        "property_facts": {
+          "type": "object[]",
+          "example": [
+            {"title": "Einige Räume werden gemeinsam genutzt", "icon": "SYSTEM_LIVING_ROOM"},
+            {"title": "Haustier(e) leben im Gebäude", "icon": "SYSTEM_PETS"},
+            {"title": "Treppensteigen ist erforderlich", "icon": "SYSTEM_STAIRS"},
+            {"title": "Keine Parkplätze auf dem Grundstück", "icon": "SYSTEM_NO_PARKING"}
+          ],
+          "source": "POLICIES_DEFAULT.safetyExpectationsAndAmenities (title='Informationen zur Unterkunft')",
+          "cost": "free"
+        },
+        "cancellation_policy_summary": {
+          "type": "string",
+          "example": "Kostenlose Stornierung vor dem 28. Januar. Wenn du vor dem Check-in am 29. Januar stornierst, erhältst du eine anteilige Rückerstattung.",
+          "source": "POLICIES_DEFAULT.cancellationPolicyForDisplay",
+          "cost": "free",
+          "notes": "Date-aware — depends on check_in/check_out URL params."
+        },
+        "cancellation_policies_full": {
+          "type": "object[]",
+          "example": [{"id": "...", "title": "Flexible", "milestones": [{"daysBeforeCheckIn": 1, "refundPercentage": 100}]}],
+          "source": "BOOK_IT_SIDEBAR.cancellationPolicies + CANCELLATION_POLICY_PICKER_MODAL",
+          "cost": "modal_click"
+        },
+        "business_listing_disclaimer_html": {
+          "type": "string (HTML)",
+          "example": "Carole ist allein dafür verantwortlich, diese Unterkunft auf Airbnb anzubieten...",
+          "source": "node.pdpPresentation.businessDetails.detailsHtml",
+          "cost": "free"
+        }
+      }
+    },
+
+    "pricing_and_availability": {
+      "description": "Date-dependent pricing + calendar.",
+      "fields": {
+        "price_total_label": {
+          "type": "string",
+          "example": "192 € Gesamtpreis",
+          "source": "BOOK_IT_SIDEBAR DOM (formatted)",
+          "cost": "free",
+          "notes": "Rounded display value for the URL's check_in/check_out range."
+        },
+        "price_breakdown": {
+          "type": "object",
+          "example": {
+            "nights": 2,
+            "price_per_night": "84,68 €",
+            "subtotal": "169,36 €",
+            "taxes": "22,10 €",
+            "total": "191,46 €",
+            "due_today": "0 €"
+          },
+          "source": "Modal 'Detaillierte Preisanzeige' (open via 'Preisaufschlüsselung anzeigen' link)",
+          "cost": "modal_click",
+          "notes": "Includes service fees, taxes, cleaning fees when present."
+        },
+        "currency": {
+          "type": "string (ISO 4217)",
+          "example": "EUR",
+          "source": "Inferred from price strings + URL locale (de_DE -> EUR)",
+          "cost": "free"
+        },
+        "can_instant_book": {
+          "type": "boolean",
+          "example": false,
+          "source": "BOOK_IT_SIDEBAR.canInstantBook",
+          "cost": "free"
+        },
+        "rare_find_badge": {
+          "type": "boolean",
+          "example": true,
+          "source": "URGENCY_COMMITMENT_SIDEBAR / BOOK_IT_SIDEBAR.urgencyCommitmentMessage",
+          "cost": "free",
+          "notes": "Triggers the 'Seltenes Fundstück' label."
+        },
+        "selected_check_in": {
+          "type": "string (ISO date)",
+          "example": "2027-01-29",
+          "source": "URL ?check_in= + AVAILABILITY_CALENDAR_INLINE.startDate",
+          "cost": "free"
+        },
+        "selected_check_out": {
+          "type": "string (ISO date)",
+          "example": "2027-01-31",
+          "source": "URL ?check_out= + AVAILABILITY_CALENDAR_INLINE.endDate",
+          "cost": "free"
+        },
+        "availability_calendar": {
+          "type": "object",
+          "example": {
+            "month": "2027-01",
+            "days": [{"date": "2027-01-01", "available": false, "min_nights": 2}]
+          },
+          "source": "AVAILABILITY_CALENDAR_DEFAULT.calendarMonths",
+          "cost": "free",
+          "notes": "Initial render covers ~2 months. Additional months load via paginated GraphQL (StaysPdpAvailabilityCalendar)."
+        },
+        "min_nights": {
+          "type": "integer",
+          "example": 1,
+          "source": "AVAILABILITY_CALENDAR_DEFAULT.minNights",
+          "cost": "free"
+        },
+        "max_nights": {
+          "type": "integer",
+          "example": 365,
+          "source": "AVAILABILITY_CALENDAR_DEFAULT.maxNights",
+          "cost": "free"
+        },
+        "discount_messages": {
+          "type": "object[]",
+          "example": [{"type": "WEEKLY_DISCOUNT", "amount": "10%"}],
+          "source": "BOOK_IT_SIDEBAR.discountData + promotionBanner",
+          "cost": "free",
+          "notes": "Empty when no active promotion."
+        }
+      }
+    },
+
+    "trust_and_quality_signals": {
+      "description": "Badges and meta signals useful as agent input.",
+      "fields": {
+        "guest_favorite_position_label": {
+          "type": "string",
+          "example": "Diese Unterkunft gehört zu den obersten 1 % der infrage kommenden Inserate",
+          "source": "GUEST_FAVORITE_BANNER section innerText",
+          "cost": "free"
+        },
+        "ugc_translation_active": {
+          "type": "boolean",
+          "example": true,
+          "source": "UGC_TRANSLATION.isAutoTranslatedOn",
+          "cost": "free"
+        },
+        "report_to_airbnb_url": {
+          "type": "string",
+          "example": "/help/...",
+          "source": "REPORT_TO_AIRBNB.button.url",
+          "cost": "free"
+        },
+        "reported_status_for_viewer": {
+          "type": "string",
+          "example": "NOT_REPORTED",
+          "source": "node.reportedStatusForViewer",
+          "cost": "free"
+        }
+      }
+    },
+
+    "seo_and_meta": {
+      "description": "Page-level SEO surfaces.",
+      "fields": {
+        "og_title": {
+          "type": "string",
+          "example": "Eigentumswohnung · Paris · ★4,94 · 1 Schlafzimmer · 1 Bett · 1 Gemeinschafts-Badezimmer",
+          "source": "<meta property=\"og:title\">",
+          "cost": "free",
+          "notes": "Pre-formatted summary line — useful as a fallback caption."
+        },
+        "og_description": {
+          "type": "string",
+          "example": "Eine ruhige kleine Ecke im Herzen von Paris",
+          "source": "<meta property=\"og:description\">",
+          "cost": "free"
+        },
+        "page_title": {
+          "type": "string",
+          "example": "Eine ruhige kleine Ecke im Herzen von Paris - Condos zur Miete in Paris, Île-de-France, Frankreich - Airbnb",
+          "source": "<title>",
+          "cost": "free"
+        },
+        "json_ld_vacation_rental": {
+          "type": "object",
+          "example": {"@type": "VacationRental", "name": "...", "image": ["..."], "latitude": 48.85286, "longitude": 2.35036, "aggregateRating": {"ratingValue": 4.94, "ratingCount": "617"}},
+          "source": "<script type=\"application/ld+json\">",
+          "cost": "free",
+          "notes": "Two JSON-LD blocks: VacationRental + Product. Includes top 8 image URLs."
+        },
+        "seo_breadcrumbs": {
+          "type": "string[]",
+          "example": ["Airbnb", "Frankreich", "Seine"],
+          "source": "SEO_LINKS_DEFAULT section innerText",
+          "cost": "free"
+        }
+      }
+    }
+  },
+
+  "what_we_can_not_get": {
+    "description": "Fields that are NOT reachable via public-PDP scraping.",
+    "items": [
+      {"field": "exact_street_address", "reason": "Disclosed only after booking confirmation."},
+      {"field": "host_phone_email", "reason": "All comms forced through in-platform messaging."},
+      {"field": "host_message_inbox", "reason": "Requires authenticated session."},
+      {"field": "true_dynamic_pricing_curve", "reason": "Public PDP shows current price for current dates only. Historical pricing not surfaced."},
+      {"field": "guest_identities_in_reviews", "reason": "Reviewer last names, emails, exact location withheld."},
+      {"field": "host_payout_currency_or_payment_settings", "reason": "Private to host."},
+      {"field": "internal_quality_score_raw", "reason": "Only the percentile bucket is shown ('top 1 %')."}
+    ]
+  },
+
+  "implementation_hints": {
+    "extraction_strategy": {
+      "step_1_navigate": "Playwright navigate to https://www.airbnb.de/rooms/<id>?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD&adults=N&locale=de (or en).",
+      "step_2_grab_blob": "page.evaluate(() => document.getElementById('data-deferred-state-0').textContent). The result is a JSON string -> JSON.parse -> JSON.parse again (it's double-encoded as { niobeClientData: [[queryKey, payload]] }).",
+      "step_3_walk_sections": "payload.data.presentation.stayProductDetailPage.sections.sections is a list of { sectionId, sectionComponentType, section }. Index by sectionId.",
+      "step_4_walk_node": "payload.data.node.pdpPresentation has flattened fields (descriptions, overview, mediaTour, businessDetails, quality, sharingConfig).",
+      "step_5_optional_modals": "For price breakdown click button matching /preisaufschl(ü|u)sselung/i; for full reviews click 'Alle ... Bewertungen anzeigen' then scroll a [role=dialog] container until no new reviewer cards appear.",
+      "step_6_fallback_dom": "If a section returns null (Airbnb A/B-tests change schemas), fall back to scraping the visible DOM via document.querySelector('[data-section-id=\"...\"]').innerText."
+    },
+    "robustness_warnings": [
+      "Schema is unstable. Fields/section IDs change in Airbnb releases — wrap each extraction in a try/except and store a snapshot of the raw blob alongside parsed output.",
+      "Locale changes labels but keeps IDs/enums. For multi-language agent prompts, prefer the enum (e.g. categoryType='LOCATION') over the localized label ('Lage').",
+      "Image URLs lack ?im_w=... — the bare base_url returns the original. For thumbnails use ?im_w=240/720/1080.",
+      "Airbnb has bot detection (datadome). Playwright with stealth headers + residential IP works; raw curl usually doesn't.",
+      "Be polite: cap concurrency, randomize delays, identify in User-Agent, respect robots.txt for the agent's actual use case."
+    ]
+  }
+}

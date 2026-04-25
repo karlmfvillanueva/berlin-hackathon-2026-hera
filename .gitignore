@@ -17,6 +17,7 @@ credentials/
 # Tool working dirs / generated output
 .entire/
 design-extract-output/
+.playwright-mcp/
 
 # OS
 .DS_Store
