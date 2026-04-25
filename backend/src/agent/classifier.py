@@ -1,15 +1,18 @@
 """LLM-based editorial classifier.
 
-Sends listing summary to Gemini 2.5 Pro and gets back structured AgentDecision
-fields (vibes, hook, pacing, angle, background) plus the beliefs that influenced
-the decision. Uses Gemini's native JSON-schema mode (response_mime_type +
-response_schema) — no tool-use boilerplate, the SDK returns a parsed Pydantic
-model on response.parsed.
+Sends listing summary to Gemini 2.5 Pro on Vertex AI and gets back structured
+AgentDecision fields (vibes, hook, pacing, angle, background) plus the beliefs
+that influenced the decision. Uses Gemini's native JSON-schema mode
+(response_mime_type + response_schema) — no tool-use boilerplate, the SDK
+returns a parsed Pydantic model on response.parsed.
+
+Auth: Application Default Credentials (ADC). Run
+`gcloud auth application-default login` once locally; CI/prod uses a service
+account. No API key in env. GCP_PROJECT + GCP_LOCATION env vars target the
+Vertex AI endpoint.
 
 2.5-Pro is a reasoning model: max_output_tokens covers both thinking and the
-JSON response, so the budget is split via _THINKING_BUDGET. The Gemini 3.x
-preview models would be a drop-in replacement once the project's API key has
-quota for them — only _MODEL needs to change.
+JSON response, so the budget is split via _THINKING_BUDGET.
 """
 
 import os
@@ -21,7 +24,10 @@ from pydantic import BaseModel, Field
 from src.agent.models import Belief, ScrapedListing
 from src.logger import log
 
-_MODEL = "gemini-2.5-pro"
+# Model is env-overridable so a 3.x preview ID can be dropped in once the GCP
+# project gets allowlisted, without touching code. 2.5-pro is the most capable
+# GA model that the hackathon project can call today.
+_MODEL = os.getenv("GEMINI_CLASSIFIER_MODEL", "gemini-2.5-pro")
 # 2.5-Pro is a reasoning model. max_output_tokens covers BOTH thinking and the
 # JSON response, so we leave plenty of headroom: ~2K for thinking, ~2K for the
 # 5-field schema. Tune _THINKING_BUDGET if classification feels shallow.
@@ -128,11 +134,12 @@ def classify(listing: ScrapedListing, beliefs: list[Belief] | None = None) -> di
     """Call Gemini and return the editorial decision dict.
 
     Returns a dict with keys: vibes, hook, pacing, angle, background, beliefs_applied.
-    Raises RuntimeError on missing key or on a malformed/empty response.
+    Raises RuntimeError on missing GCP config or on a malformed/empty response.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY is not set")
+    project = os.getenv("GCP_PROJECT")
+    location = os.getenv("GCP_LOCATION", "us-central1")
+    if not project:
+        raise RuntimeError("GCP_PROJECT is not set")
 
     beliefs = beliefs or []
     log.info(
@@ -142,7 +149,7 @@ def classify(listing: ScrapedListing, beliefs: list[Belief] | None = None) -> di
         len(beliefs),
     )
 
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(vertexai=True, project=project, location=location)
     response = client.models.generate_content(
         model=_MODEL,
         contents=_build_user_message(listing),

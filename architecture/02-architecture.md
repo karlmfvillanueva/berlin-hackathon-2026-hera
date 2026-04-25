@@ -19,7 +19,7 @@ This document is the single source of truth for what exists, what's planned, and
 | Persistence | None (stateless) | Supabase Postgres | (unchanged) |
 | Listing source | Pre-captured JSON fixtures | Live Playwright scrape | Airbnb + Booking + VRBO |
 | Image processing | Pass through CDN URLs | Optional Nanobanana outpaint to 9:16 (toggle) | (unchanged) |
-| Agent | Gemini 2.5 Pro via google-genai SDK | + beliefs from DB | (unchanged) |
+| Agent | Gemini 2.5 Pro via Vertex AI (ADC) | + beliefs from DB | (unchanged) |
 | Video render | Hera REST | (unchanged) | (unchanged) |
 | Status updates | HTTP polling 5s | (unchanged) | Optional SSE upgrade |
 
@@ -318,7 +318,7 @@ Full specification in `03-agent-pipeline.md`. Summary for this document:
 
 **Steps (single Gemini call with structured output):**
 1. Score each photo against angle priority keywords using deterministic Python (`image_scorer.py`).
-2. Send listing summary + photo labels to Gemini 2.5 Pro via the google-genai SDK. Receive `{ angle_id, confidence, rationale }` as JSON.
+2. Send listing summary + photo labels to Gemini 2.5 Pro on Vertex AI (ADC). Receive `{ angle_id, confidence, rationale }` as JSON.
 3. Fill the angle's prompt template with listing fields (`prompt_builder.py`).
 4. Return `AgentDecision` with the angle, rationale, top 5 image URLs (post-outpaint if enabled), and the assembled Hera prompt.
 
@@ -506,9 +506,9 @@ Local dev only. `make dev` starts both servers. No production deployment yet.
 ```
 # Backend
 HERA_API_KEY=hera_…
-GEMINI_API_KEY=AIza…
-NANOBANANA_API_KEY=nb_…              # Phase 2
-SUPABASE_URL=https://….supabase.co   # Phase 2
+GCP_PROJECT=…                        # Vertex AI for classifier + outpainter
+GCP_LOCATION=us-central1             # ADC, no API key. `gcloud auth application-default login`
+SUPABASE_URL=https://….supabase.co   # Phase 2 — also hosts outpainted-photos bucket
 SUPABASE_SERVICE_KEY=eyJ…            # Phase 2 (server-only, service role)
 
 # Frontend

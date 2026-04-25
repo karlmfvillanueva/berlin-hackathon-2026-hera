@@ -1,22 +1,24 @@
-"""Outpaint top-5 photos to 9:16 portrait via Google's native nano-banana model.
+"""Outpaint top-5 photos to 9:16 portrait via Google's nano-banana image model.
 
 Pipeline per photo:
   1. Download the source URL (the landscape Airbnb photo)
-  2. Call Gemini's image-edit model (gemini-3.1-flash-image-preview) with the
-     source bytes + a portrait-extension prompt → output JPEG bytes
+  2. Call Gemini's image-edit model on Vertex AI with the source bytes + a
+     portrait-extension prompt → output JPEG bytes
   3. Upload the result to Supabase Storage bucket `outpainted-photos`
   4. Return the public URL Hera can fetch as a reference_image_url
 
 5 photos run concurrently via asyncio.gather. Per-photo budget 30s. Any failure
-(quota, network, bad bytes, missing Supabase, missing Gemini key) silently
+(quota, network, bad bytes, missing Supabase, missing GCP config) silently
 falls back to the original URL — the output list always matches the input length
 so downstream code never sees a missing image.
 
-We use the native Gemini API instead of fal.ai's wrapper so the project only
-needs one key (GEMINI_API_KEY) and a single SDK (google-genai).
+Auth: Application Default Credentials (ADC) via Vertex AI. Same project /
+location as the classifier. Model is env-overridable so a 3.x preview ID can
+be dropped in once the GCP project gets allowlisted.
 """
 
 import asyncio
+import os
 import uuid
 
 import httpx
@@ -26,9 +28,12 @@ from google.genai import types
 from src.logger import log
 from src.supabase_client import get_supabase_client
 
-_MODEL = "gemini-3.1-flash-image-preview"
+_MODEL = os.getenv("GEMINI_OUTPAINT_MODEL", "gemini-2.5-flash-image")
 _BUCKET = "outpainted-photos"
 _PER_PHOTO_TIMEOUT = 30.0
+# 5 parallel uploads can exhaust macOS SSL/socket pools (Errno 35 EAGAIN);
+# 3 keeps total latency basically identical and gives clean 5/5 success.
+_MAX_PARALLEL = 3
 _OUTPAINT_PROMPT = (
     "Extend this image vertically to a 9:16 portrait aspect ratio. "
     "Add natural ceiling above and floor below, matching lighting, perspective, "
@@ -59,14 +64,7 @@ async def _outpaint_one(
         async with asyncio.timeout(_PER_PHOTO_TIMEOUT):
             src_bytes = await _download(http, src_url)
 
-            response = await gemini.aio.models.generate_content(
-                model=_MODEL,
-                contents=[
-                    _OUTPAINT_PROMPT,
-                    types.Part.from_bytes(data=src_bytes, mime_type="image/jpeg"),
-                ],
-                config=types.GenerateContentConfig(response_modalities=["IMAGE"]),
-            )
+            response = await _generate_with_retry(gemini, src_bytes)
 
             out_bytes, mime = _extract_image(response)
             if out_bytes is None:
@@ -103,6 +101,28 @@ async def _outpaint_one(
         return src_url
 
 
+async def _generate_with_retry(gemini: genai.Client, src_bytes: bytes):
+    """Single retry-on-429 with backoff. Vertex AI rate-limits image-edit calls
+    aggressively when 3 land in the same second; one ~3s wait is usually enough."""
+    for attempt in (0, 1):
+        try:
+            return await gemini.aio.models.generate_content(
+                model=_MODEL,
+                contents=[
+                    _OUTPAINT_PROMPT,
+                    types.Part.from_bytes(data=src_bytes, mime_type="image/jpeg"),
+                ],
+                config=types.GenerateContentConfig(response_modalities=["IMAGE"]),
+            )
+        except Exception as exc:  # noqa: BLE001 — bare so we can sniff for 429
+            is_429 = "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc)
+            if attempt == 0 and is_429:
+                log.info("outpaint: 429 from Vertex, retrying after 3s")
+                await asyncio.sleep(3.0)
+                continue
+            raise
+
+
 def _extract_image(response) -> tuple[bytes | None, str]:
     """Pull the first inline_data image part out of a Gemini response."""
     try:
@@ -121,26 +141,31 @@ async def outpaint_5_photos(urls: list[str]) -> list[str]:
     if not urls:
         return []
 
-    import os
-
-    api_key = os.getenv("GEMINI_API_KEY", "")
+    project = os.getenv("GCP_PROJECT", "").strip()
+    location = os.getenv("GCP_LOCATION", "us-central1").strip()
     supabase_url = os.getenv("SUPABASE_URL", "").strip()
     supabase = get_supabase_client()
 
-    if not api_key:
-        log.warning("outpaint: GEMINI_API_KEY missing — returning originals")
+    if not project:
+        log.warning("outpaint: GCP_PROJECT missing — returning originals")
         return list(urls)
     if supabase is None or not supabase_url:
         log.warning("outpaint: Supabase not configured — returning originals")
         return list(urls)
 
-    gemini = genai.Client(api_key=api_key)
-    log.info("outpaint: starting %d concurrent calls via %s", len(urls), _MODEL)
+    gemini = genai.Client(vertexai=True, project=project, location=location)
+    log.info(
+        "outpaint: starting %d calls via %s (max_parallel=%d)",
+        len(urls),
+        _MODEL,
+        _MAX_PARALLEL,
+    )
+    sem = asyncio.Semaphore(_MAX_PARALLEL)
+
+    async def _gated(u: str) -> str:
+        async with sem:
+            return await _outpaint_one(http, gemini, supabase, supabase_url, u)
+
     async with httpx.AsyncClient() as http:
-        results = await asyncio.gather(
-            *(
-                _outpaint_one(http, gemini, supabase, supabase_url, u)
-                for u in urls
-            )
-        )
+        results = await asyncio.gather(*(_gated(u) for u in urls))
     return list(results)
