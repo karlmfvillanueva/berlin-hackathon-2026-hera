@@ -80,9 +80,7 @@ async def probe_one(url: str) -> ScrapeReport:
 
             # Visible-element checks only -- substring matching on full HTML
             # false-positives on every page (Airbnb embeds reCAPTCHA scripts site-wide).
-            captcha_selector = (
-                'iframe[title*="captcha" i], iframe[src*="recaptcha/api2/anchor"]'
-            )
+            captcha_selector = 'iframe[title*="captcha" i], iframe[src*="recaptcha/api2/anchor"]'
             try:
                 if await page.locator(captcha_selector).count():
                     report.blocked_signals.append("captcha")
@@ -98,10 +96,7 @@ async def probe_one(url: str) -> ScrapeReport:
                 report.title = title or None
                 generic_titles = {
                     "airbnb",
-                    (
-                        "airbnb: vacation rentals, cabins, beach houses, "
-                        "unique homes & experiences"
-                    ),
+                    ("airbnb: vacation rentals, cabins, beach houses, unique homes & experiences"),
                 }
                 if title.lower() in generic_titles:
                     report.blocked_signals.append("generic_homepage_title")
@@ -117,15 +112,14 @@ async def probe_one(url: str) -> ScrapeReport:
 
             try:
                 amenities = await page.locator(
-                    'div[data-section-id*="AMENITIES"] li, '
-                    'section[aria-labelledby*="amenities"] li'
+                    'div[data-section-id*="AMENITIES"] li, section[aria-labelledby*="amenities"] li'
                 ).count()
                 report.amenity_count = amenities
             except Exception:
                 pass
 
             try:
-                photos = await page.locator('picture img, img[data-original-uri]').count()
+                photos = await page.locator("picture img, img[data-original-uri]").count()
                 report.photo_count = photos
             except Exception:
                 pass

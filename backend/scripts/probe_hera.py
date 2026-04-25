@@ -57,7 +57,7 @@ def main() -> int:
 
     print(f"Loaded credentials from {CREDS_FILE.relative_to(REPO_ROOT)}")
     print(f"Probe target: {HERA_BASE_URL}")
-    print(f"Format: 9:16, 15s, 1080p, mp4")
+    print("Format: 9:16, 15s, 1080p, mp4")
     print()
 
     headers = {"x-api-key": api_key, "content-type": "application/json"}

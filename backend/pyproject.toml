@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.9",
     "python-dotenv>=1.0",
     "playwright>=1.49",
+    "anthropic>=0.40.0",
 ]
 
 [tool.ruff]
@@ -24,3 +25,8 @@ quote-style = "double"
 
 [tool.uv]
 package = false
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.12",
+]
