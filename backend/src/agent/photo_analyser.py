@@ -248,10 +248,12 @@ def _build_message_content(
     icp: Mapping[str, Any],
     location_enrichment: Mapping[str, Any],
     reviews_evaluation: Mapping[str, Any],
+    emphasis_hints: list[str] | None = None,
+    deemphasis_hints: list[str] | None = None,
 ) -> list:
     n = len(catalog)
     vision_n = min(n, _MAX_VISION_ATTACHMENTS)
-    bundle = {
+    bundle: dict[str, Any] = {
         "PHOTO_CATALOG": catalog,
         "ICP_CLASSIFIER": icp,
         "LOCATION_ENRICHMENT": location_enrichment,
@@ -261,6 +263,19 @@ def _build_message_content(
             "matching PHOTO_CATALOG order. Remaining catalog rows are text-only."
         ),
     }
+    if emphasis_hints or deemphasis_hints:
+        bundle["USER_EMPHASIS"] = {
+            "must_feature": emphasis_hints or [],
+            "downplay": deemphasis_hints or [],
+            "instruction": (
+                "User-supplied steering: when scoring photos and choosing the "
+                "five hero-first indices, upweight photos showing the "
+                "must_feature subjects and downweight photos centered on the "
+                "downplay subjects. Treat as a soft preference layered on top "
+                "of ICP fit — never select objectively bad photos to satisfy "
+                "the hint, but break ties in favor of must_feature."
+            ),
+        }
     text_part = (
         "Analyse listing photos for a high-converting short vertical rental ad.\n"
         f"{json.dumps(bundle, ensure_ascii=False, indent=2)}"
@@ -430,8 +445,14 @@ def analyse_photos(
     icp: Mapping[str, Any],
     location_enrichment: Mapping[str, Any],
     reviews_evaluation: Mapping[str, Any],
+    emphasis_hints: list[str] | None = None,
+    deemphasis_hints: list[str] | None = None,
 ) -> dict[str, Any]:
     """Run Photo Analyser on scrape + upstream agent JSON.
+
+    ``emphasis_hints`` and ``deemphasis_hints`` are user-supplied soft steering
+    labels (amenity / landmark / feature names) folded into the prompt as a
+    preference layer. Both default to no-ops, preserving pre-Phase-1-flow behaviour.
 
     Returns structured dict including ``selected_indices_hero_first`` (1-based, distinct,
     length min(5, number of photos)).
@@ -458,17 +479,26 @@ def analyse_photos(
             listing_id = core.get("listing_id")
 
     log.info(
-        "photo_analyser: calling %s listing_id=%s catalog=%d vision_attach=%d",
+        "photo_analyser: calling %s listing_id=%s catalog=%d vision_attach=%d emphasis=%d deemphasis=%d",
         _MODEL,
         listing_id,
         n,
         min(n, _MAX_VISION_ATTACHMENTS),
+        len(emphasis_hints or []),
+        len(deemphasis_hints or []),
     )
 
     client = genai.Client(vertexai=True, project=project, location=location)
     response = client.models.generate_content(
         model=_MODEL,
-        contents=_build_message_content(catalog, icp, location_enrichment, reviews_evaluation),
+        contents=_build_message_content(
+            catalog,
+            icp,
+            location_enrichment,
+            reviews_evaluation,
+            emphasis_hints=emphasis_hints,
+            deemphasis_hints=deemphasis_hints,
+        ),
         config=types.GenerateContentConfig(
             system_instruction=_SYSTEM_PROMPT,
             response_mime_type="application/json",

@@ -22,8 +22,16 @@ from typing import Any
 from google import genai
 from google.genai import types
 
-from src.agent.models import Photo, ScrapedListing
+from src.agent.models import HookOption, Overrides, Photo, ScrapedListing
 from src.logger import log
+
+_LANGUAGE_NAMES = {"de": "German (Deutsch)", "en": "English", "es": "Spanish (Español)"}
+_TONE_BRIEFS: dict[str, str] = {
+    "luxury": "restrained, aspirational, minimal text, slow cinematic pacing.",
+    "family": "warm, safe, nostalgic, cross-dissolves, gentle music.",
+    "urban": "high contrast, bold typography, fast cuts, modern editorial energy.",
+    "cozy": "warm desaturated intimacy, slow soft transitions, lo-fi acoustic mood.",
+}
 
 _MODEL = os.getenv("GEMINI_FINAL_ASSEMBLY_MODEL", "gemini-2.5-pro")
 # 2.5-Pro is a reasoning model: max_output_tokens covers thinking + JSON response.
@@ -323,6 +331,8 @@ def _build_user_message(
     visual_system: Mapping[str, Any],
     photo_analysis: Mapping[str, Any],
     assembly_photos: list[Photo],
+    overrides: Overrides | None = None,
+    chosen_hook: HookOption | None = None,
 ) -> str:
     summary = {
         "title": listing.title,
@@ -334,7 +344,7 @@ def _build_user_message(
         "description": listing.description[:4000],
         "amenity_labels": listing.amenities,
     }
-    body = {
+    body: dict[str, Any] = {
         "PROPERTY_SUMMARY": summary,
         "PROPERTY_PHOTOS": _photo_catalog(assembly_photos),
         "PHOTO_ANALYSER": photo_analysis,
@@ -343,9 +353,49 @@ def _build_user_message(
         "REVIEWS_EVALUATION": reviews_evaluation,
         "VISUAL_SYSTEM": visual_system,
     }
+    if overrides is not None:
+        body["USER_STEERING"] = {
+            "language": {
+                "code": overrides.language,
+                "name": _LANGUAGE_NAMES.get(overrides.language, overrides.language),
+                "instruction": (
+                    f"All on-screen text, voiceover, captions, and CTA copy in the "
+                    f"hera_video_prompt MUST be written in {_LANGUAGE_NAMES.get(overrides.language, overrides.language)}. "
+                    "Section headings (HOOK, SCENE 1, etc.) stay in English; only the "
+                    "human-facing copy fields (OPENING HOOK LINE, scene text, CTA) translate."
+                ),
+            },
+            "tone_preset": {
+                "key": overrides.tone,
+                "brief": _TONE_BRIEFS.get(overrides.tone, ""),
+                "instruction": (
+                    "Honor this tone preset over the VISUAL_SYSTEM defaults if they "
+                    "conflict on pacing, palette temperature, or music mood."
+                ),
+            },
+            "must_feature": overrides.emphasis,
+            "downplay": overrides.deemphasis,
+            "must_feature_instruction": (
+                "Subjects in must_feature MUST appear in WHAT TO PUSH and at least one "
+                "non-CTA scene. Subjects in downplay MUST NOT lead the hook and should "
+                "appear at most once across all scenes."
+            ),
+        }
+        if chosen_hook is not None:
+            body["USER_STEERING"]["forced_hook"] = {
+                "label": chosen_hook.label,
+                "kind": chosen_hook.kind,
+                "rationale": chosen_hook.rationale,
+                "instruction": (
+                    "OPENING HOOK LINE and SCENE 1 (HOOK) MUST be built around this "
+                    "subject. You may keep the rest of the brief data-driven."
+                ),
+            }
     return (
         "Synthesize the following into one strategic Hera brief.\n"
-        "Resolve any tension in favor of the single highest-converting angle.\n\n"
+        "Resolve any tension in favor of the single highest-converting angle.\n"
+        "If a USER_STEERING block is present, treat its instructions as hard constraints "
+        "that override conflicting agent suggestions.\n\n"
         f"{json.dumps(body, ensure_ascii=False, indent=2)}"
     )
 
@@ -521,6 +571,8 @@ def _one_sample(
     photo_analysis: Mapping[str, Any],
     assembly_photos: list[Photo],
     temperature: float,
+    overrides: Overrides | None = None,
+    chosen_hook: HookOption | None = None,
 ) -> dict[str, Any] | None:
     """Single Final-Assembly Gemini call. Returns the validated result dict or
     None if the call or validation failed (so callers can drop and continue).
@@ -538,6 +590,8 @@ def _one_sample(
                 visual_system,
                 photo_analysis,
                 assembly_photos,
+                overrides=overrides,
+                chosen_hook=chosen_hook,
             ),
             config=types.GenerateContentConfig(
                 system_instruction=_SYSTEM_PROMPT,
@@ -694,8 +748,14 @@ def assemble_strategic_hera_prompt(
     reviews_evaluation: Mapping[str, Any],
     visual_system: Mapping[str, Any],
     photo_analysis: Mapping[str, Any],
+    overrides: Overrides | None = None,
+    chosen_hook: HookOption | None = None,
 ) -> tuple[str, list[str], int, dict[str, Any] | None]:
     """Run Strategic Opinion assembly with 3 parallel samples + Judge.
+
+    ``overrides`` and ``chosen_hook`` come from the Phase 1 user-approval step
+    and are injected into every sample's prompt as a USER_STEERING block. Both
+    default to None, which preserves the pre-Phase-1-flow behaviour.
 
     Returns ``(hera_prompt, selected_image_urls, duration_seconds, judge_meta)``.
     `judge_meta` is None when only one sample survived (no judging needed),
@@ -707,10 +767,12 @@ def assemble_strategic_hera_prompt(
         raise RuntimeError("Final assembly requires at least one listing photo for Hera references")
 
     log.info(
-        "final_assembly: calling %s shortlist_photos=%d multi_sample=%s",
+        "final_assembly: calling %s shortlist_photos=%d multi_sample=%s overrides=%s hook=%s",
         _MODEL,
         len(assembly_photos),
         _MULTI_SAMPLE_ENABLED,
+        bool(overrides),
+        chosen_hook.id if chosen_hook else None,
     )
 
     temperatures: tuple[float, ...] = _TEMPERATURES if _MULTI_SAMPLE_ENABLED else (_TEMPERATURE,)
@@ -727,6 +789,8 @@ def assemble_strategic_hera_prompt(
                 photo_analysis,
                 assembly_photos,
                 temperatures[0],
+                overrides=overrides,
+                chosen_hook=chosen_hook,
             )
         ]
     else:
@@ -742,6 +806,8 @@ def assemble_strategic_hera_prompt(
                     photo_analysis,
                     assembly_photos,
                     t,
+                    overrides,
+                    chosen_hook,
                 )
                 for t in temperatures
             ]

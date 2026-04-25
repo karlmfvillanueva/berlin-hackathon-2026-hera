@@ -21,7 +21,8 @@ from src.agent import (
     RegenerateRequest,
     RegenerateResponse,
     load_fixture,
-    run,
+    run_render_from_plan,
+    run_storyboard_plan,
 )
 from src.agent.scraper import scrape_listing
 from src.logger import log
@@ -181,32 +182,43 @@ async def get_listing(body: ListingRequest) -> ListingResponse:
             },  # noqa: E501
         )
     try:
-        decision = await run(listing, outpaint_enabled=body.outpaint_enabled)
+        phase1 = run_storyboard_plan(listing, outpaint_enabled=body.outpaint_enabled)
     except Exception as exc:
-        log.exception("listing: classifier failed")
+        log.exception("listing: phase1 pipeline failed")
         raise HTTPException(
             status_code=500,
             detail={"error": "classifier_failed", "message": str(exc)},
         ) from exc
-    return ListingResponse(listing=listing, decision=decision)
+    return ListingResponse(listing=listing, phase1=phase1)
 
 
 @app.post("/api/generate", response_model=GenerateResponse)
 async def generate_video(body: GenerateRequest) -> GenerateResponse:
-    """Submit a Hera video job using a pre-computed AgentDecision."""
+    """Phase 2: run the heavy agents with user overrides, then submit to Hera."""
+    try:
+        decision = await run_render_from_plan(body.listing, body.phase1, body.overrides)
+    except Exception as exc:
+        log.exception("generate: phase2 pipeline failed")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "render_pipeline_failed", "message": str(exc)},
+        ) from exc
+
     # Hera's reference_image_urls is for brand/style references (logo, palette).
     # Listing content photos go in assets[] with type=image.
-    image_assets = [{"type": "image", "url": u} for u in body.decision.selected_image_urls[:5]]
+    image_assets = [{"type": "image", "url": u} for u in decision.selected_image_urls[:5]]
     payload = {
-        "prompt": body.decision.hera_prompt,
-        "duration_seconds": body.decision.duration_seconds,
+        "prompt": decision.hera_prompt,
+        "duration_seconds": decision.duration_seconds,
         "outputs": [{"format": "mp4", "aspect_ratio": "9:16", "fps": "30", "resolution": "1080p"}],
         "assets": image_assets,
     }
     log.info(
-        "generate: submitting to Hera. prompt_chars=%d images=%d",
-        len(body.decision.hera_prompt),
+        "generate: submitting to Hera. prompt_chars=%d images=%d lang=%s tone=%s",
+        len(decision.hera_prompt),
         len(image_assets),
+        body.overrides.language,
+        body.overrides.tone,
     )
     try:
         r = await app.state.http.post("/videos", json=payload)
@@ -238,9 +250,9 @@ async def generate_video(body: GenerateRequest) -> GenerateResponse:
                     "hera_video_id": video_id,
                     "hera_project_url": hera_response.get("project_url"),
                     "video_url": None,
-                    "outpaint_enabled": body.decision.outpaint_enabled,
+                    "outpaint_enabled": decision.outpaint_enabled,
                     "listing_data": body.listing.model_dump(),
-                    "agent_decision": body.decision.model_dump(),
+                    "agent_decision": decision.model_dump(),
                     "hera_payload": payload,
                 }
             ).execute()
@@ -248,7 +260,7 @@ async def generate_video(body: GenerateRequest) -> GenerateResponse:
         except Exception as exc:
             log.error("supabase: insert failed video_id=%s err=%s", video_id, exc)
 
-    return GenerateResponse(video_id=video_id, decision=body.decision)
+    return GenerateResponse(video_id=video_id, decision=decision)
 
 
 @app.post("/api/regenerate", response_model=RegenerateResponse)

@@ -1,27 +1,24 @@
-"""Orchestrates the full multi-agent pipeline for one listing.
+"""Orchestrates the multi-agent pipeline for one listing, split into two phases.
 
-run(listing, outpaint_enabled=False) -> AgentDecision
+Phase 1 — `run_storyboard_plan(listing, outpaint_enabled)` returns a Phase1Decision
+the user can approve / override. Cheap (~10s on top of scrape):
+  1. Stage 1 in parallel: classify_icp + enrich_location + evaluate_reviews.
+  2. derive_visual_system (needs icp + location).
+  3. _suggest_phase1_extras: language detection, tone preset, emphasis chips,
+     hook candidates derived from the structured agent outputs above.
 
-Stages:
-  1. Build a scrape-shaped document from ScrapedListing (shim).
-  2. Stage 1 in parallel: classify_icp + enrich_location + evaluate_reviews.
-  3. Stage 2 in parallel: derive_visual_system (needs icp + location) +
-     analyse_photos (needs scrape + icp + location + reviews; vision-enabled).
-  4. assemble_strategic_hera_prompt — Final Assembly Strategic Opinion Agent
-     produces the Hera-ready prompt + chosen reference image URLs.
-  5. Optional outpaint to 9:16 (preserves Phase 2 path).
-  6. Derive legacy display fields (vibes / hook / pacing / angle / background)
-     from the structured agent outputs so the existing frontend keeps working.
-  7. Derive beliefs_applied as a deterministic audit trail by mapping the
-     structured agent decisions to the seed beliefs in Supabase. The new
-     pipeline already encodes most beliefs as hard-coded prompt heuristics
-     (12-15s duration, CTA at end, hero-first photo order, palette-by-setting)
-     — we observe what the agents actually decided and label which seed
-     beliefs effectively shaped the result. No extra LLM call, no schema risk.
+Phase 2 — `run_render_from_plan(listing, phase1, overrides)` returns the full
+AgentDecision ready for Hera submission. Expensive (~10s + Hera 3 min):
+  4. analyse_photos (vision-backed) — receives emphasis / deemphasis hints.
+  5. assemble_strategic_hera_prompt — Strategic Opinion Agent receives user
+     overrides (language, tone, emphasis, chosen hook) injected into the brief.
+  6. Optional outpaint to 9:16.
+  7. Derive legacy display fields + beliefs_applied audit trail.
 """
 
 from __future__ import annotations
 
+import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -29,12 +26,50 @@ from src.agent.beliefs import fetch_beliefs
 from src.agent.final_assembly import assemble_strategic_hera_prompt
 from src.agent.icp_classifier import classify_icp
 from src.agent.location_enrichment import enrich_location
-from src.agent.models import AgentDecision, Belief, ScrapedListing
+from src.agent.models import (
+    AgentDecision,
+    Belief,
+    EmphasisOption,
+    HookOption,
+    Language,
+    Overrides,
+    Phase1Decision,
+    ScrapedListing,
+    Tone,
+)
 from src.agent.outpainter import outpaint_5_photos
 from src.agent.photo_analyser import analyse_photos
 from src.agent.reviews_evaluation import evaluate_reviews
 from src.agent.visual_systems import derive_visual_system
 from src.logger import log
+
+# Persona → tone preset map. Drives suggested_tone in Phase 1; the user can
+# override. Coverage of all nine ALLOWED_PERSONAS in icp_classifier.
+_PERSONA_TONE: dict[str, Tone] = {
+    "Luxury experience seeker": "luxury",
+    "Family visiting adult child": "family",
+    "Friend group celebration": "urban",
+    "Party group": "urban",
+    "Digital nomad": "urban",
+    "First-time city tourist": "urban",
+    "Couples weekend break": "cozy",
+    "Solo traveler": "cozy",
+    "Budget-smart traveler": "cozy",
+}
+
+# Tiny stop-word language detector. Avoids adding a new dependency. Counts
+# distinct hits; thresholds tuned for short Airbnb-listing-length text.
+_LANG_MARKERS: dict[Language, frozenset[str]] = {
+    "de": frozenset(
+        {"der", "die", "das", "und", "ist", "ein", "eine", "mit", "für", "wir", "sie", "auch"}
+    ),
+    "es": frozenset(
+        {"el", "la", "los", "las", "y", "es", "un", "una", "con", "para", "que", "del"}
+    ),
+    "en": frozenset(
+        {"the", "and", "is", "a", "an", "of", "to", "in", "with", "for", "you", "our"}
+    ),
+}
 
 
 def _listing_to_scrape_document(listing: ScrapedListing) -> dict[str, Any]:
@@ -204,16 +239,189 @@ def _derive_beliefs_applied(
     return applied
 
 
-async def run(listing: ScrapedListing, outpaint_enabled: bool = False) -> AgentDecision:
-    """Run the full multi-agent pipeline and return a populated AgentDecision."""
-    log.info("orchestrator: start listing=%s outpaint=%s", listing.url, outpaint_enabled)
+def _detect_language(text: str) -> Language:
+    """Return the most-likely Language for short listing text.
 
-    # Phase 2 beliefs are still pulled (kept for frontend display + future
-    # injection into Final Assembly). Currently not consumed by the new pipeline,
-    # so beliefs_applied stays empty.
-    beliefs = fetch_beliefs(limit=10)
-    log.info("orchestrator: beliefs_fetched=%d", len(beliefs))
+    Pure heuristic over a small stop-word list — accurate enough for the three
+    languages we expose and zero-dependency."""
+    if not text:
+        return "en"
+    tokens = re.findall(r"[a-zäöüáéíóúñ']+", text.lower())[:600]
+    if not tokens:
+        return "en"
+    counts: dict[Language, int] = {"de": 0, "es": 0, "en": 0}
+    for tok in tokens:
+        for lang, markers in _LANG_MARKERS.items():
+            if tok in markers:
+                counts[lang] += 1
+    winner = max(counts, key=lambda k: counts[k])
+    # Require at least 3 hits before claiming a non-English language; otherwise
+    # default to English to avoid flipping on tiny noise.
+    if winner != "en" and counts[winner] < 3:
+        return "en"
+    return winner
 
+
+def _suggest_tone(icp: dict[str, Any]) -> Tone:
+    persona = ((icp.get("best_icp") or {}).get("persona") or "") if isinstance(icp, dict) else ""
+    return _PERSONA_TONE.get(persona, "cozy")
+
+
+def _slugify(label: str) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")
+    return s or "item"
+
+
+def _suggest_emphasis_options(
+    listing: ScrapedListing,
+    location: dict[str, Any],
+    reviews: dict[str, Any],
+    limit: int = 8,
+) -> list[EmphasisOption]:
+    """Top emphasis chips from amenities + landmarks + review-emphasis themes.
+
+    Score = base weight per source + 0.5 per occurrence in review quotes. Slugs
+    are stable ids the frontend echoes back in Overrides.emphasis."""
+    quote_text = " ".join(listing.review_quotes or []).lower()
+
+    candidates: dict[str, EmphasisOption] = {}
+
+    def add(label: str, source: str, base_score: float) -> None:
+        label = label.strip()
+        if not label:
+            return
+        slug = _slugify(label)
+        bonus = 0.5 * sum(1 for tok in label.lower().split() if len(tok) > 3 and tok in quote_text)
+        score = base_score + bonus
+        existing = candidates.get(slug)
+        if existing is None or score > existing.score:
+            candidates[slug] = EmphasisOption(slug=slug, label=label, score=score, source=source)  # type: ignore[arg-type]
+
+    for amenity in listing.amenities or []:
+        add(amenity, "amenity", base_score=1.0)
+
+    landmarks = location.get("landmark_proximity") if isinstance(location, dict) else None
+    if isinstance(landmarks, list):
+        for lm in landmarks[:6]:
+            if isinstance(lm, str):
+                add(lm.split("—")[0].split("(")[0].strip(), "location", base_score=1.2)
+
+    creative = reviews.get("creative_implications") if isinstance(reviews, dict) else None
+    if isinstance(creative, dict):
+        for theme in (creative.get("what_to_emphasize") or [])[:6]:
+            if isinstance(theme, str):
+                add(theme, "review", base_score=1.5)
+
+    ranked = sorted(candidates.values(), key=lambda o: o.score, reverse=True)
+    return ranked[:limit]
+
+
+def _suggest_hook_options(
+    listing: ScrapedListing,
+    icp: dict[str, Any],
+    location: dict[str, Any],
+    reviews: dict[str, Any],
+) -> list[HookOption]:
+    """Three concrete hook candidates from the structured Stage 1 outputs."""
+    hooks: list[HookOption] = []
+
+    creative_imp = reviews.get("creative_implications") if isinstance(reviews, dict) else {}
+    top_emphasis: str | None = None
+    if isinstance(creative_imp, dict):
+        emph = creative_imp.get("what_to_emphasize") or []
+        if isinstance(emph, list) and emph:
+            for e in emph:
+                if isinstance(e, str) and e.strip():
+                    top_emphasis = e.strip()
+                    break
+    if top_emphasis:
+        hooks.append(
+            HookOption(
+                id="amenity-top",
+                label=top_emphasis,
+                kind="amenity",
+                rationale="Reviews-validated angle: what guests already praise most.",
+            )
+        )
+
+    if isinstance(location, dict):
+        landmarks = location.get("landmark_proximity")
+        if isinstance(landmarks, list):
+            for lm in landmarks:
+                if isinstance(lm, str) and lm.strip():
+                    label = lm.split("—")[0].split("(")[0].strip()
+                    hooks.append(
+                        HookOption(
+                            id="location-top",
+                            label=label,
+                            kind="location",
+                            rationale="Open with the landmark guests are actually here for.",
+                        )
+                    )
+                    break
+
+    if isinstance(reviews, dict):
+        quotes = reviews.get("best_video_quotes") or []
+        if isinstance(quotes, list):
+            for q in quotes:
+                if isinstance(q, dict):
+                    text = q.get("quote")
+                    if isinstance(text, str) and text.strip():
+                        snippet = text.strip()
+                        if len(snippet) > 80:
+                            snippet = snippet[:77].rstrip() + "…"
+                        hooks.append(
+                            HookOption(
+                                id="review-top",
+                                label=f"“{snippet}”",
+                                kind="review",
+                                rationale="Real guest words carry more trust than host claims.",
+                            )
+                        )
+                        break
+
+    if not hooks:
+        best_icp = (icp.get("best_icp") or {}) if isinstance(icp, dict) else {}
+        trigger = best_icp.get("booking_trigger") if isinstance(best_icp, dict) else None
+        if isinstance(trigger, str) and trigger.strip():
+            hooks.append(
+                HookOption(
+                    id="icp-trigger",
+                    label=trigger.strip(),
+                    kind="amenity",
+                    rationale="The booking trigger of the strongest persona for this listing.",
+                )
+            )
+
+    return hooks[:3]
+
+
+def _suggest_phase1_extras(
+    listing: ScrapedListing,
+    icp: dict[str, Any],
+    location: dict[str, Any],
+    reviews: dict[str, Any],
+) -> dict[str, Any]:
+    language = _detect_language(f"{listing.title}\n{listing.description}")
+    tone = _suggest_tone(icp)
+    emphasis = _suggest_emphasis_options(listing, location, reviews)
+    hooks = _suggest_hook_options(listing, icp, location, reviews)
+    return {
+        "language": language,
+        "tone": tone,
+        "emphasis": emphasis,
+        "hooks": hooks,
+    }
+
+
+def run_storyboard_plan(
+    listing: ScrapedListing,
+    outpaint_enabled: bool = False,
+) -> Phase1Decision:
+    """Phase 1: scrape + cheap agents + suggestion layer for user approval."""
+    log.info(
+        "orchestrator: phase1 start listing=%s outpaint=%s", listing.url, outpaint_enabled
+    )
     scrape = _listing_to_scrape_document(listing)
 
     # Stage 1 — three independent listing-intelligence agents, parallel.
@@ -225,27 +433,77 @@ async def run(listing: ScrapedListing, outpaint_enabled: bool = False) -> AgentD
         location = fut_loc.result()
         reviews = fut_reviews.result()
 
-    # Stage 2 — visual system (icp + location) and photo selection (scrape + all
-    # three Stage 1 outputs, vision-backed). Parallel.
-    with ThreadPoolExecutor(max_workers=2) as pool2:
-        fut_visual = pool2.submit(
-            derive_visual_system,
-            icp=icp,
-            location_enrichment=location,
-        )
-        fut_photo = pool2.submit(
-            analyse_photos,
-            scrape,
-            icp,
-            location,
-            reviews,
-        )
-        visual = fut_visual.result()
-        photo = fut_photo.result()
+    # Visual system depends on icp + location; ~2-3 s, kept in Phase 1 because
+    # the user-facing tone preset reads from it indirectly.
+    visual = derive_visual_system(icp=icp, location_enrichment=location)
 
-    # Final assembly — Strategic Opinion Agent runs 3 parallel samples,
-    # Judge picks the strongest brief (judge_meta=None on single-sample path
-    # or judge failure → caller falls back to first survivor inside the call).
+    extras = _suggest_phase1_extras(listing, icp, location, reviews)
+
+    phase1 = Phase1Decision(
+        icp=icp,
+        location_enrichment=location,
+        reviews_evaluation=reviews,
+        visual_system=visual,
+        suggested_language=extras["language"],
+        suggested_tone=extras["tone"],
+        emphasis_options=extras["emphasis"],
+        hook_options=extras["hooks"],
+        duration_seconds=15,
+        outpaint_enabled=outpaint_enabled,
+    )
+    log.info(
+        "orchestrator: phase1 done persona=%r setting=%r tone=%s lang=%s "
+        "emphasis=%d hooks=%d",
+        ((icp.get("best_icp") or {}).get("persona") if isinstance(icp, dict) else None),
+        (visual.get("inferred_setting") if isinstance(visual, dict) else None),
+        phase1.suggested_tone,
+        phase1.suggested_language,
+        len(phase1.emphasis_options),
+        len(phase1.hook_options),
+    )
+    return phase1
+
+
+async def run_render_from_plan(
+    listing: ScrapedListing,
+    phase1: Phase1Decision,
+    overrides: Overrides,
+) -> AgentDecision:
+    """Phase 2: heavy agents + final assembly with user overrides applied."""
+    log.info(
+        "orchestrator: phase2 start listing=%s lang=%s tone=%s emphasis=%d hook=%s outpaint=%s",
+        listing.url,
+        overrides.language,
+        overrides.tone,
+        len(overrides.emphasis),
+        overrides.hook_id,
+        phase1.outpaint_enabled,
+    )
+
+    icp = phase1.icp or {}
+    location = phase1.location_enrichment or {}
+    reviews = phase1.reviews_evaluation or {}
+    visual = phase1.visual_system or {}
+
+    beliefs = fetch_beliefs(limit=10)
+    scrape = _listing_to_scrape_document(listing)
+
+    photo = analyse_photos(
+        scrape,
+        icp,
+        location,
+        reviews,
+        emphasis_hints=overrides.emphasis,
+        deemphasis_hints=overrides.deemphasis,
+    )
+
+    chosen_hook: HookOption | None = None
+    if overrides.hook_id and overrides.hook_id != "auto":
+        for h in phase1.hook_options:
+            if h.id == overrides.hook_id:
+                chosen_hook = h
+                break
+
     (
         hera_prompt,
         selected_image_urls,
@@ -258,16 +516,24 @@ async def run(listing: ScrapedListing, outpaint_enabled: bool = False) -> AgentD
         reviews_evaluation=reviews,
         visual_system=visual,
         photo_analysis=photo,
+        overrides=overrides,
+        chosen_hook=chosen_hook,
     )
 
-    # Optional Phase 2 outpaint pass over the chosen reference URLs.
-    if outpaint_enabled:
+    if phase1.outpaint_enabled:
         selected_image_urls = await outpaint_5_photos(selected_image_urls)
 
     legacy = _derive_legacy_fields(icp, location, reviews, visual, photo)
     beliefs_applied = _derive_beliefs_applied(
         icp, visual, reviews, photo, duration_seconds, beliefs
     )
+
+    # Tag overrides into beliefs_applied so RationaleRail can show them.
+    overrides_tag = (
+        f"override:lang={overrides.language},tone={overrides.tone},"
+        f"emphasis={len(overrides.emphasis)},hook={overrides.hook_id}"
+    )
+    beliefs_applied = [*beliefs_applied, overrides_tag]
 
     decision = AgentDecision(
         vibes=legacy["vibes"],
@@ -277,7 +543,7 @@ async def run(listing: ScrapedListing, outpaint_enabled: bool = False) -> AgentD
         background=legacy["background"],
         selected_image_urls=selected_image_urls,
         hera_prompt=hera_prompt,
-        outpaint_enabled=outpaint_enabled,
+        outpaint_enabled=phase1.outpaint_enabled,
         beliefs_applied=beliefs_applied,
         icp=icp,
         location_enrichment=location,
@@ -290,16 +556,10 @@ async def run(listing: ScrapedListing, outpaint_enabled: bool = False) -> AgentD
         judge_scores_per_brief=judge_meta["scores_per_brief"] if judge_meta else None,
     )
 
-    best = icp.get("best_icp") if isinstance(icp.get("best_icp"), dict) else {}
     log.info(
-        "orchestrator: done persona=%r inferred_setting=%r duration_s=%d images=%d "
-        "prompt_chars=%d beliefs_applied=%d/%d",
-        best.get("persona") if isinstance(best, dict) else None,
-        visual.get("inferred_setting") if isinstance(visual, dict) else None,
+        "orchestrator: phase2 done duration_s=%d images=%d prompt_chars=%d",
         decision.duration_seconds,
         len(decision.selected_image_urls),
         len(decision.hera_prompt),
-        len(decision.beliefs_applied),
-        len(beliefs),
     )
     return decision

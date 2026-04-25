@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react"
 
-import { AttributeCard } from "@/components/AttributeCard"
 import { ErrorState } from "@/components/ErrorState"
 import { Header } from "@/components/Header"
 import { RationaleRail } from "@/components/RationaleRail"
 import { StepIndicator } from "@/components/StepIndicator"
+import { Storyboard } from "@/components/Storyboard"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { UrlInput } from "@/components/UrlInput"
@@ -12,7 +12,7 @@ import { VideoPlayer } from "@/components/VideoPlayer"
 import "./index.css"
 
 import { postGenerate, postListing, postRegenerate, pollStatus } from "./api/client"
-import type { AgentDecision, AppState, ScrapedListing } from "./types"
+import type { AppState, Overrides, Phase1Decision, ScrapedListing } from "./types"
 
 const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 3 * 60 * 1000
@@ -60,8 +60,15 @@ export default function App() {
     setListingUrl(url)
     setSubmitting(true)
     try {
-      const { listing, decision } = await postListing(url, outpaintEnabled)
-      setState({ screen: "reviewing", listing, decision })
+      const { listing, phase1 } = await postListing(url, outpaintEnabled)
+      const overrides: Overrides = {
+        language: phase1.suggested_language,
+        tone: phase1.suggested_tone,
+        emphasis: [],
+        deemphasis: [],
+        hook_id: "auto",
+      }
+      setState({ screen: "storyboard", listing, phase1, overrides })
     } catch (err) {
       setState({
         screen: "error",
@@ -72,18 +79,28 @@ export default function App() {
     }
   }
 
-  async function handleContinue(listing: ScrapedListing, decision: AgentDecision) {
+  async function handleRender(
+    listing: ScrapedListing,
+    phase1: Phase1Decision,
+    overrides: Overrides,
+  ) {
     setSubmitting(true)
     setScriptStep(0)
     setElapsedSeconds(0)
     try {
-      const { video_id } = await postGenerate(listingUrl, listing, decision)
+      const { video_id, decision } = await postGenerate(
+        listingUrl,
+        listing,
+        phase1,
+        overrides,
+      )
       setState({
         screen: "generating",
         listing,
+        phase1,
+        overrides,
         decision,
         videoId: video_id,
-        outpaint_enabled: outpaintEnabled,
       })
     } catch (err) {
       setState({
@@ -97,7 +114,7 @@ export default function App() {
 
   async function handleRegenerate() {
     if (state.screen !== "done") return
-    const { listing, decision } = state
+    const { listing, phase1, overrides, decision } = state
     setRegenerating(true)
     try {
       const { video_id, decision: newDecision } = await postRegenerate(
@@ -108,9 +125,10 @@ export default function App() {
       setState({
         screen: "generating",
         listing,
+        phase1,
+        overrides,
         decision: newDecision,
         videoId: video_id,
-        outpaint_enabled: outpaintEnabled,
       })
     } catch (err) {
       setState({
@@ -120,6 +138,11 @@ export default function App() {
     } finally {
       setRegenerating(false)
     }
+  }
+
+  function updateOverrides(next: Overrides) {
+    if (state.screen !== "storyboard") return
+    setState({ ...state, overrides: next })
   }
 
   async function handleDownload() {
@@ -166,7 +189,7 @@ export default function App() {
 
   useEffect(() => {
     if (state.screen !== "generating") return
-    const { videoId, listing, decision } = state
+    const { videoId, listing, phase1, overrides, decision } = state
 
     let cancelled = false
     pollStartRef.current = Date.now()
@@ -198,7 +221,15 @@ export default function App() {
         if (data.status === "success") {
           clearPolling()
           const fileUrl = data.outputs[0]?.file_url ?? ""
-          setState({ screen: "done", listing, decision, fileUrl, videoId })
+          setState({
+            screen: "done",
+            listing,
+            phase1,
+            overrides,
+            decision,
+            fileUrl,
+            videoId,
+          })
         } else if (data.status === "failed") {
           clearPolling()
           setState({
@@ -256,81 +287,19 @@ export default function App() {
         </main>
       )}
 
-      {/* reviewing */}
-      {state.screen === "reviewing" && (
-        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-12">
-          <div className="flex flex-col gap-2">
-            <p className="text-label text-muted-foreground">Listing scraped</p>
-            <h2 className="text-display-lg">Here's what we found.</h2>
-            <p className="text-body max-w-prose text-muted-foreground">
-              Our agent picked these attributes. Approve each card or edit before we generate.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-            <AttributeCard label="Title">
-              <span className="line-clamp-3">{state.listing.title}</span>
-            </AttributeCard>
-
-            <AttributeCard label="Location">
-              <span className="line-clamp-3">{state.listing.location}</span>
-            </AttributeCard>
-
-            <AttributeCard label="Vibes / Tags">
-              <span className="line-clamp-3">{state.decision.vibes}</span>
-            </AttributeCard>
-
-            <AttributeCard label={`Hero Images (${state.decision.selected_image_urls.length})`}>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2 overflow-hidden">
-                  {state.decision.selected_image_urls.slice(0, 4).map((url, i) => (
-                    <div
-                      key={i}
-                      className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-md bg-muted"
-                    >
-                      <img
-                        src={url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = "none"
-                        }}
-                      />
-                    </div>
-                  ))}
-                  {state.decision.selected_image_urls.length === 0 && (
-                    <div className="h-[88px] w-[88px] rounded-md bg-muted" />
-                  )}
-                </div>
-                {state.decision.selected_image_urls.length > 4 && (
-                  <span className="text-body-sm text-muted-foreground">
-                    +{state.decision.selected_image_urls.length - 4} more · agent picked these as strongest
-                  </span>
-                )}
-              </div>
-            </AttributeCard>
-
-            <AttributeCard label="Bedrooms / Sleeps">
-              <span className="line-clamp-3">{state.listing.bedrooms_sleeps}</span>
-            </AttributeCard>
-
-            <AttributeCard label="Price / Night">
-              <span className="line-clamp-3">{state.listing.price_display}</span>
-            </AttributeCard>
-          </div>
-
-          <div className="flex items-center justify-between pt-2">
-            <Button onClick={goIdle} variant="outline">
-              Back
-            </Button>
-            <Button
-              onClick={() => handleContinue(state.listing, state.decision)}
-              disabled={submitting}
-            >
-              {submitting ? "Starting…" : "Continue → Generate Video"}
-            </Button>
-          </div>
-        </main>
+      {/* storyboard */}
+      {state.screen === "storyboard" && (
+        <Storyboard
+          listing={state.listing}
+          phase1={state.phase1}
+          overrides={state.overrides}
+          onChange={updateOverrides}
+          onRender={() =>
+            void handleRender(state.listing, state.phase1, state.overrides)
+          }
+          onBack={goIdle}
+          submitting={submitting}
+        />
       )}
 
       {/* generating */}
