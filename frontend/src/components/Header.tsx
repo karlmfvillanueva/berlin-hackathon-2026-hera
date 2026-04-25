@@ -1,17 +1,45 @@
+// src/components/Header.tsx
+import { BrandMark } from "@/components/BrandMark"
+import { cn } from "@/lib/utils"
+
 interface HeaderProps {
-  step: number;
-  totalSteps?: number;
+  className?: string
 }
 
-export function Header({ step, totalSteps = 4 }: HeaderProps) {
+const NAV = ["Generate", "Library", "Beliefs"] as const
+const ACTIVE = "Generate"
+
+export function Header({ className }: HeaderProps) {
   return (
-    <header className="h-16 flex items-center justify-between px-8 bg-white border-b border-black shrink-0">
-      <span className="text-[13px] font-bold text-black tracking-normal">
-        Berlin Hackathon 2026: Hera Track
-      </span>
-      <span className="text-[13px] font-normal text-[#666666]">
-        Step {step} of {totalSteps}
-      </span>
+    <header
+      className={cn(
+        "flex h-16 shrink-0 items-center justify-between border-b border-border bg-background px-8",
+        className
+      )}
+    >
+      <BrandMark />
+
+      <nav className="flex gap-6 text-body-sm">
+        {NAV.map((item) => (
+          <span
+            key={item}
+            className={cn(
+              item === ACTIVE
+                ? "font-medium text-foreground"
+                : "text-muted-foreground"
+            )}
+          >
+            {item}
+          </span>
+        ))}
+      </nav>
+
+      <div
+        aria-label="Profile"
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground"
+      >
+        JH
+      </div>
     </header>
-  );
+  )
 }

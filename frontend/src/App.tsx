@@ -13,12 +13,6 @@ import { ErrorState } from "./components/ErrorState";
 const POLL_INTERVAL_MS = 5000;
 const POLL_TIMEOUT_MS = 3 * 60 * 1000;
 
-function stepFromScreen(screen: AppState["screen"]): number {
-  if (screen === "idle") return 1;
-  if (screen === "reviewing") return 2;
-  if (screen === "generating") return 3;
-  return 4;
-}
 
 export default function App() {
   const [state, setState] = useState<AppState>({ screen: "idle" });
@@ -205,12 +199,11 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.screen === "generating" ? state.videoId : null]);
 
-  const step = stepFromScreen(state.screen);
   const estRemaining = Math.max(0, 90 - elapsedSeconds);
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
-      <Header step={step} />
+      <Header />
 
       {/* Screen 1 — idle */}
       {state.screen === "idle" && (
