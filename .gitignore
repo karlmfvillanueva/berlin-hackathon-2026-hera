@@ -2,7 +2,9 @@
 .env
 .env.*
 !.env.example
-credentials/credentials.env
+credentials/
+/credentials
+/credentials.env
 
 # Editors / AI
 .claude/
@@ -11,6 +13,10 @@ credentials/credentials.env
 .idea/
 .planning/
 .ideation/
+
+# Tool working dirs / generated output
+.entire/
+design-extract-output/
 
 # OS
 .DS_Store
