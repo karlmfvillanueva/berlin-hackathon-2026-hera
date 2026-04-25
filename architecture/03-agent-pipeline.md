@@ -15,7 +15,7 @@ The agent has *opinions*. It is not a templating system. It will:
 
 | Phase | Agent behavior |
 |---|---|
-| Phase 1 (built) | Single Anthropic call. Hardcoded angle taxonomy in `angles.py`. Beliefs hardcoded inline. No persistence. |
+| Phase 1 (built) | Single Gemini call. Hardcoded angle taxonomy in `angles.py`. Beliefs hardcoded inline. No persistence. |
 | Phase 2 | Same call. Beliefs read from Supabase (top 10 by confidence). Optional outpainted photos passed in. New `beliefs_applied` field on `AgentDecision`. |
 | Phase 3 | Beliefs auto-update from real social-media performance data. Agent stops applying low-confidence beliefs. |
 
@@ -145,7 +145,7 @@ orchestrator.run(listing: ScrapedListing) -> AgentDecision
    │       returns: dict[angle_id, list[ScoredPhoto]]
    │
    ├─ 2. classifier.classify(listing, scored_photos, beliefs)
-   │       single Anthropic call, structured JSON output
+   │       single Gemini call, structured JSON output
    │       returns: { angle_id, confidence, rationale, beliefs_applied }
    │
    ├─ 3. prompt_builder.build(angle, listing, top_photos)
@@ -169,7 +169,7 @@ This is **deterministic Python**, not an LLM. Auditable, fast, free.
 
 ### Step 2: Classification
 
-Single Anthropic call. System prompt establishes the role and the 6 angles. User prompt includes the listing summary, photo labels, the per-angle scored photos, and the (Phase 2) beliefs.
+Single Gemini call. System instruction establishes the role and the 6 angles. User prompt includes the listing summary, photo labels, the per-angle scored photos, and the (Phase 2) beliefs.
 
 The model returns:
 
@@ -182,9 +182,9 @@ The model returns:
 }
 ```
 
-Use Claude's structured output / JSON mode. No regex parsing. Schema validation in Python via Pydantic; on validation failure, retry once at temperature 0.
+Use Gemini's `response_schema` (JSON mode). No regex parsing. Schema validation in Python via Pydantic; on validation failure, retry once at temperature 0.
 
-**Model selection:** `claude-sonnet-4-6` via the Anthropic SDK. Sonnet is fast enough (1–3s) for the synchronous request path and accurate enough for a single classification call. Opus would be overkill at the price.
+**Model selection:** `gemini-3.1-pro-preview` via the google-genai SDK. Gemini 3.1 Pro is fast enough (1–3s) for the synchronous request path and accurate enough for a single classification call.
 
 ### Step 3: Prompt building
 
@@ -420,7 +420,7 @@ The frontend gets a normal `200` with this decision. The backend logs the underl
 | Component | Phase 1 latency | Phase 1 cost | Phase 2 latency | Phase 2 cost |
 |---|---|---|---|---|
 | Image scoring (deterministic Python) | <50ms | free | <50ms | free |
-| Classifier (Anthropic Sonnet) | 1–3s | ~$0.005 | 1–3s | ~$0.005 |
+| Classifier (Gemini 3.1 Pro) | 1–3s | ~$0.005 | 1–3s | ~$0.005 |
 | Prompt building | <10ms | free | <10ms | free |
 | Beliefs SELECT (Supabase) | — | — | <100ms | rounding error |
 | **Agent total (request path)** | **1–3s** | **~$0.005** | **1–3s** | **~$0.005** |
