@@ -1,0 +1,9 @@
+/personal:git-commit
+
+---
+
+commit to main
+
+---
+
+yeah dont track that, also the design-extract-output gitignore, and also /credentials and /credentials.env

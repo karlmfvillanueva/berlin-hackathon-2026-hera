@@ -1,0 +1,75 @@
+{
+  "cli_version": "0.5.6",
+  "checkpoint_id": "da3bc73d55fe",
+  "session_id": "c56a1b49-e404-4e49-bd80-95c196411d0c",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-25T13:34:04.942733Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".gitignore",
+    "CHANGELOG.md",
+    "hera-video-hackathon.pen"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-7[1m]",
+  "turn_id": "6fb5b5f01b39",
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 52537,
+    "cache_read_tokens": 818463,
+    "output_tokens": 4149,
+    "api_call_count": 12
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-25T13:34:04.938451Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 15,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 15,
+    "total_lines_changed": 17,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 9191,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".gitignore": 1,
+        "design-extract-output/airbnb-com/airbnb-com-design-language.md": 1026,
+        "design-extract-output/airbnb-com/airbnb-com-design-tokens.json": 218,
+        "design-extract-output/airbnb-com/airbnb-com-figma-variables.json": 470,
+        "design-extract-output/airbnb-com/airbnb-com-mcp.json": 463,
+        "design-extract-output/airbnb-com/airbnb-com-preview.html": 468,
+        "design-extract-output/airbnb-com/airbnb-com-shadcn-theme.css": 17,
+        "design-extract-output/airbnb-com/airbnb-com-tailwind.config.js": 162,
+        "design-extract-output/airbnb-com/airbnb-com-theme.js": 176,
+        "design-extract-output/airbnb-com/airbnb-com-variables.css": 466,
+        "design-extract-output/airbnb-com/airbnb-com-wordpress-theme.json": 198,
+        "design-extract-output/hera-video/hera-video-design-language.md": 643,
+        "design-extract-output/hera-video/hera-video-design-tokens.json": 258,
+        "design-extract-output/hera-video/hera-video-figma-variables.json": 540,
+        "design-extract-output/hera-video/hera-video-mcp.json": 880,
+        "design-extract-output/hera-video/hera-video-preview.html": 560,
+        "design-extract-output/hera-video/hera-video-shadcn-theme.css": 19,
+        "design-extract-output/hera-video/hera-video-tailwind.config.js": 157,
+        "design-extract-output/hera-video/hera-video-theme.js": 175,
+        "design-extract-output/hera-video/hera-video-variables.css": 225,
+        "design-extract-output/hera-video/hera-video-wordpress-theme.json": 198,
+        "hera-video-hackathon.pen": 1871
+      },
+      "user_removed_per_file": {
+        ".gitignore": 1
+      }
+    }
+  ]
+}
