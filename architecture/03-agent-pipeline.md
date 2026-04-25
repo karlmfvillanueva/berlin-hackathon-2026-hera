@@ -184,7 +184,7 @@ The model returns:
 
 Use Gemini's `response_schema` (JSON mode). No regex parsing. Schema validation in Python via Pydantic; on validation failure, retry once at temperature 0.
 
-**Model selection:** `gemini-3.1-pro-preview` via the google-genai SDK. Gemini 3.1 Pro is fast enough (1–3s) for the synchronous request path and accurate enough for a single classification call.
+**Model selection:** `gemini-2.5-pro` via the google-genai SDK. 2.5-Pro is fast enough (~10–20s with reasoning enabled) for the synchronous request path and accurate enough for a single classification call. The Gemini 3.x preview models are a drop-in replacement once the project's API key has quota for them — only the model id needs to change.
 
 ### Step 3: Prompt building
 
@@ -420,7 +420,7 @@ The frontend gets a normal `200` with this decision. The backend logs the underl
 | Component | Phase 1 latency | Phase 1 cost | Phase 2 latency | Phase 2 cost |
 |---|---|---|---|---|
 | Image scoring (deterministic Python) | <50ms | free | <50ms | free |
-| Classifier (Gemini 3.1 Pro) | 1–3s | ~$0.005 | 1–3s | ~$0.005 |
+| Classifier (Gemini 2.5 Pro) | 10–20s | ~$0.01 | 10–20s | ~$0.01 |
 | Prompt building | <10ms | free | <10ms | free |
 | Beliefs SELECT (Supabase) | — | — | <100ms | rounding error |
 | **Agent total (request path)** | **1–3s** | **~$0.005** | **1–3s** | **~$0.005** |

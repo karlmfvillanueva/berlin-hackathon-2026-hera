@@ -19,7 +19,7 @@ This document is the single source of truth for what exists, what's planned, and
 | Persistence | None (stateless) | Supabase Postgres | (unchanged) |
 | Listing source | Pre-captured JSON fixtures | Live Playwright scrape | Airbnb + Booking + VRBO |
 | Image processing | Pass through CDN URLs | Optional Nanobanana outpaint to 9:16 (toggle) | (unchanged) |
-| Agent | Gemini 3.1 Pro via google-genai SDK | + beliefs from DB | (unchanged) |
+| Agent | Gemini 2.5 Pro via google-genai SDK | + beliefs from DB | (unchanged) |
 | Video render | Hera REST | (unchanged) | (unchanged) |
 | Status updates | HTTP polling 5s | (unchanged) | Optional SSE upgrade |
 
@@ -318,7 +318,7 @@ Full specification in `03-agent-pipeline.md`. Summary for this document:
 
 **Steps (single Gemini call with structured output):**
 1. Score each photo against angle priority keywords using deterministic Python (`image_scorer.py`).
-2. Send listing summary + photo labels to Gemini 3.1 Pro via the google-genai SDK. Receive `{ angle_id, confidence, rationale }` as JSON.
+2. Send listing summary + photo labels to Gemini 2.5 Pro via the google-genai SDK. Receive `{ angle_id, confidence, rationale }` as JSON.
 3. Fill the angle's prompt template with listing fields (`prompt_builder.py`).
 4. Return `AgentDecision` with the angle, rationale, top 5 image URLs (post-outpaint if enabled), and the assembled Hera prompt.
 
