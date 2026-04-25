@@ -1,19 +1,24 @@
-"""Live Airbnb listing scraper (Phase 2, P2, behind ENABLE_LIVE_SCRAPE).
+"""Live Airbnb listing scraper (Phase 2, behind ENABLE_LIVE_SCRAPE).
 
-Strategy:
-  1. Try the page's __NEXT_DATA__ blob — full structured listing JSON when present.
-  2. Fall back to visible-element CSS selectors (mirrors backend/scripts/probe_scrape.py).
-  3. Return None on any failure — caller raises 503 scrape_blocked.
+Strategy (best-first):
+  1. JSON-LD (`script[type="application/ld+json"]` with @type=VacationRental/Product)
+     — Airbnb ships a full structured payload here: name, description, address,
+     image[], aggregateRating, lat/long. Most reliable and stable across regions.
+  2. OpenGraph tags (`og:title`, `og:description`, `og:image`) — backfills any
+     gaps and carries useful "1 Schlafzimmer · 1 Bett" style metadata in og:title.
+  3. Visible DOM selectors — last-ditch fallback for the photo gallery, mirrors
+     `backend/scripts/probe_scrape.py`.
 
-The fixture loader stays the default. Live scraping is opt-in for the demo.
-Risk: Airbnb actively blocks scrapers. Failures here should never bubble as 500.
+Returns None on any failure path → caller raises 503 scrape_blocked, never 500.
+The fixture loader stays the default; live scraping is opt-in for the demo.
 """
 
 from __future__ import annotations
 
 import json
+import re
 
-from playwright.async_api import async_playwright
+from playwright.async_api import Page, async_playwright
 
 from src.agent.models import Photo, ScrapedListing
 from src.logger import log
@@ -44,21 +49,27 @@ async def scrape_listing(url: str) -> ScrapedListing | None:
                 await page.wait_for_timeout(_SETTLE_MS)
 
                 if "/rooms/" not in page.url:
-                    log.warning("scraper: redirected off listing url=%s final=%s", url, page.url)
+                    log.warning(
+                        "scraper: redirected off listing url=%s final=%s", url, page.url
+                    )
                     return None
 
-                listing = await _extract_from_next_data(page, url)
-                if listing is not None:
-                    log.info("scraper: extracted via __NEXT_DATA__ photos=%d", len(listing.photos))
-                    return listing
+                ld = await _read_json_ld(page)
+                og = await _read_og_tags(page)
+                dom_photos = await _read_dom_photos(page)
 
-                listing = await _extract_from_dom(page, url)
-                if listing is not None:
-                    log.info("scraper: extracted via DOM fallback photos=%d", len(listing.photos))
-                    return listing
+                listing = _assemble(url, ld, og, dom_photos)
+                if listing is None:
+                    log.warning("scraper: could not assemble listing url=%s", url)
+                    return None
 
-                log.warning("scraper: no extraction path succeeded url=%s", url)
-                return None
+                log.info(
+                    "scraper: ok title=%r photos=%d desc_chars=%d",
+                    listing.title[:60],
+                    len(listing.photos),
+                    len(listing.description),
+                )
+                return listing
             finally:
                 await context.close()
                 await browser.close()
@@ -67,105 +78,193 @@ async def scrape_listing(url: str) -> ScrapedListing | None:
         return None
 
 
-async def _extract_from_next_data(page, url: str) -> ScrapedListing | None:
-    """Try to pull a ScrapedListing from the page's __NEXT_DATA__ blob.
+# ---------------------------------------------------------------------------
+# Extractors
+# ---------------------------------------------------------------------------
 
-    Airbnb's internal schema shifts; we look for the title-like 'name' field
-    anywhere in the tree as a sanity check, then defer to the DOM extractor
-    for everything else. A more thorough mapping is Phase 3 work — for the
-    hackathon path the DOM fallback is what actually carries us.
+
+async def _read_json_ld(page: Page) -> dict | None:
+    """Return the first VacationRental/Product JSON-LD payload, or None."""
+    try:
+        scripts = await page.locator('script[type="application/ld+json"]').all()
+    except Exception:
+        return None
+    for s in scripts:
+        try:
+            text = await s.text_content()
+            if not text:
+                continue
+            data = json.loads(text)
+        except Exception:
+            continue
+        if not isinstance(data, dict):
+            continue
+        if data.get("@type") in {"VacationRental", "Product", "LodgingBusiness"}:
+            return data
+    return None
+
+
+async def _read_og_tags(page: Page) -> dict[str, str]:
+    """Pull og:title / og:description / og:image. Empty dict on full miss."""
+    out: dict[str, str] = {}
+    for prop in ("og:title", "og:description", "og:image"):
+        try:
+            loc = page.locator(f'meta[property="{prop}"]')
+            if await loc.count():
+                v = await loc.get_attribute("content")
+                if v:
+                    out[prop] = v
+        except Exception:
+            continue
+    return out
+
+
+async def _read_dom_photos(page: Page) -> list[str]:
+    """DOM photo fallback — first 12 listing-image-looking URLs."""
+    urls: list[str] = []
+    try:
+        loc = page.locator("picture img, img[data-original-uri]")
+        count = await loc.count()
+        for i in range(min(count, 30)):
+            src = await loc.nth(i).get_attribute("src")
+            if src and _looks_like_listing_photo(src) and src not in urls:
+                urls.append(src)
+                if len(urls) >= 12:
+                    break
+    except Exception:
+        pass
+    return urls
+
+
+# ---------------------------------------------------------------------------
+# Assembly + helpers
+# ---------------------------------------------------------------------------
+
+
+def _assemble(
+    url: str,
+    ld: dict | None,
+    og: dict[str, str],
+    dom_photos: list[str],
+) -> ScrapedListing | None:
+    """Merge JSON-LD + og:tags + DOM photos into a ScrapedListing.
+
+    Requires at minimum: a non-empty title and at least 1 photo. Otherwise None.
     """
-    try:
-        raw = await page.eval_on_selector("script#__NEXT_DATA__", "el => el.textContent")
-        data = json.loads(raw)
-    except Exception:
+    og_title = (og.get("og:title") or "").strip()
+    title = _clean_title(
+        (ld.get("name") if ld else None)
+        or og_title
+        or ""
+    )
+
+    description = ""
+    if ld and isinstance(ld.get("description"), str):
+        description = ld["description"].strip()
+    if not description and og.get("og:description"):
+        description = og["og:description"].strip()
+
+    location = ""
+    if ld and isinstance(ld.get("address"), dict):
+        loc = ld["address"].get("addressLocality") or ld["address"].get("addressRegion")
+        if isinstance(loc, str):
+            location = loc.strip()
+    if not location and og_title:
+        # og:title pattern: "Eigentumswohnung · Paris · ★4,94 · 1 Schlafzimmer ..."
+        parts = [p.strip() for p in og_title.split("·") if p.strip()]
+        if len(parts) >= 2:
+            location = parts[1]
+
+    bedrooms_sleeps = _parse_bedrooms_sleeps(og_title)
+
+    photos: list[Photo] = []
+    if ld:
+        for img in (ld.get("image") or []):
+            if isinstance(img, str):
+                img_url = img
+            elif isinstance(img, dict):
+                img_url = img.get("url")
+            else:
+                img_url = None
+            if isinstance(img_url, str) and _looks_like_listing_photo(img_url):
+                photos.append(Photo(url=img_url, label=None))
+    # Add DOM photos as supplement (deduped)
+    seen = {p.url for p in photos}
+    for u in dom_photos:
+        if u not in seen:
+            photos.append(Photo(url=u, label=None))
+            seen.add(u)
+    # Fall back to og:image as a single hero if everything else is empty
+    if not photos and og.get("og:image"):
+        photos.append(Photo(url=og["og:image"], label=None))
+
+    if not title or not photos:
         return None
 
-    title = _find_first_string(data, key="name", min_len=6, max_len=200)
-    if not title:
-        return None
+    rating = _format_rating(ld) if ld else ""
 
-    # Title found, but reliable photos/amenities live in the DOM. Return None
-    # so the DOM extractor runs and we don't ship an empty listing.
-    log.info("scraper: __NEXT_DATA__ title=%r — handing off to DOM extractor", title[:60])
-    return None
-
-
-def _find_first_string(node, key: str, min_len: int, max_len: int) -> str | None:
-    """DFS for the first {key: <string>} entry that looks like a real value."""
-    if isinstance(node, dict):
-        for k, v in node.items():
-            if k == key and isinstance(v, str) and min_len < len(v) < max_len:
-                return v
-            found = _find_first_string(v, key, min_len, max_len)
-            if found:
-                return found
-    elif isinstance(node, list):
-        for item in node:
-            found = _find_first_string(item, key, min_len, max_len)
-            if found:
-                return found
-    return None
+    return ScrapedListing(
+        url=url,
+        title=title,
+        description=description,
+        amenities=[],  # JSON-LD rarely lists these reliably; skip for now
+        photos=photos[:10],
+        location=location,
+        price_display=rating,  # repurpose: show rating since price isn't in JSON-LD
+        bedrooms_sleeps=bedrooms_sleeps,
+    )
 
 
-async def _extract_from_dom(page, url: str) -> ScrapedListing | None:
-    """DOM-selector fallback. Mirrors backend/scripts/probe_scrape.py findings."""
-    try:
-        title = (await page.title()).strip()
-        if not title or "airbnb" == title.lower():
-            return None
+def _clean_title(title: str) -> str:
+    """Strip Airbnb's site-wide suffixes from the page title."""
+    t = title.strip()
+    # Page-title suffixes seen in og:title vary by locale ("- Airbnb", "| Airbnb")
+    for sep in (" - Airbnb", " | Airbnb"):
+        if sep in t:
+            t = t.split(sep)[0].strip()
+            break
+    return t
 
-        description = ""
-        try:
-            meta = await page.locator('meta[name="description"]').get_attribute("content")
-            description = (meta or "").strip()
-        except Exception:
-            pass
 
-        amenities: list[str] = []
-        try:
-            amenity_locator = page.locator(
-                'div[data-section-id*="AMENITIES"] li, section[aria-labelledby*="amenities"] li'
-            )
-            count = await amenity_locator.count()
-            for i in range(min(count, 30)):
-                text = (await amenity_locator.nth(i).inner_text()).strip()
-                if text:
-                    amenities.append(text[:80])
-        except Exception:
-            pass
+def _parse_bedrooms_sleeps(og_title: str) -> str:
+    """Extract bedrooms / beds / baths blob from og:title.
 
-        photo_urls: list[str] = []
-        try:
-            img_locator = page.locator("picture img, img[data-original-uri]")
-            count = await img_locator.count()
-            for i in range(min(count, 20)):
-                src = await img_locator.nth(i).get_attribute("src")
-                if src and src.startswith("http") and src not in photo_urls:
-                    photo_urls.append(src)
-        except Exception:
-            pass
+    og:title example:
+      'Eigentumswohnung · Paris · ★4,94 · 1 Schlafzimmer · 1 Bett · 1 Gemeinschafts-Badezimmer'
+    Returns the joined "X Y · X Z · X W" sequence or '' if not found.
+    """
+    if not og_title:
+        return ""
+    parts = [p.strip() for p in og_title.split("·") if p.strip()]
+    keywords = re.compile(
+        r"(schlafzimmer|bedroom|bett|bed|bad|bath|sleeps|gäste|guests)",
+        re.IGNORECASE,
+    )
+    relevant = [p for p in parts if keywords.search(p)]
+    return " · ".join(relevant) if relevant else ""
 
-        if len(photo_urls) < 3:
-            return None
 
-        location = ""
-        try:
-            loc_el = page.locator('button[data-section-id*="LOCATION"], a[href*="/maps/"]')
-            if await loc_el.count():
-                location = (await loc_el.first.inner_text())[:120].strip()
-        except Exception:
-            pass
+def _format_rating(ld: dict) -> str:
+    """Format aggregateRating as 'rating★ (count reviews)' or ''."""
+    agg = ld.get("aggregateRating")
+    if not isinstance(agg, dict):
+        return ""
+    rv = agg.get("ratingValue")
+    rc = agg.get("ratingCount")
+    if rv is None:
+        return ""
+    if rc:
+        return f"{rv}★ ({rc} reviews)"
+    return f"{rv}★"
 
-        return ScrapedListing(
-            url=url,
-            title=title,
-            description=description,
-            amenities=amenities,
-            photos=[Photo(url=u, label=None) for u in photo_urls[:10]],
-            location=location,
-            price_display="",
-            bedrooms_sleeps="",
-        )
-    except Exception:
-        return None
+
+def _looks_like_listing_photo(src: str) -> bool:
+    """Filter avatars, badges, platform assets — keep only listing photos."""
+    if not src.startswith("http"):
+        return False
+    if "muscache.com" not in src:
+        return True  # other CDNs slip through; better to keep than drop
+    # Drop user avatars and platform-asset badges (e.g. GuestFavorite icon)
+    if "/user/" in src or "platform-assets" in src.lower():
+        return False
+    return True
