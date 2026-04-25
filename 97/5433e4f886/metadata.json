@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.6",
+  "checkpoint_id": "975433e4f886",
+  "strategy": "manual-commit",
+  "branch": "karl/phase2-frontend",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/components/ErrorState.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/97/5433e4f886/0/metadata.json",
+      "transcript": "/97/5433e4f886/0/full.jsonl",
+      "content_hash": "/97/5433e4f886/0/content_hash.txt",
+      "prompt": "/97/5433e4f886/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1170,
+    "cache_creation_tokens": 354685,
+    "cache_read_tokens": 3372505,
+    "output_tokens": 36384,
+    "api_call_count": 34
+  }
+}

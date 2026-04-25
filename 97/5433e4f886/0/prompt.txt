@@ -1,0 +1,25 @@
+'/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/architecture/implementation.md' i need you to build the Karl ones (frontend). Basically '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/CLAUDE.md' and '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/HERA.md' and '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/architecture' are the specs. 
+
+use product manager agent, refine the tickets. then tell me how many parallelizable tickets we can run. once i approve, run a frontend agent for each one of them. if anything unclear do not make assumptions, just ask
+
+---
+
+1 = A, we are building separately and we need to merge later. just leave notes as commentsin the code so that when we integrate, it would know
+
+2 = yes crate branch from develop
+
+3 = 3 parallel streams
+
+4 = let's do B
+
+5 = yes use frontend-developer agents
+
+6 = yes, enforce context7 (i have this as hooks anyway already)
+
+---
+
+go
+
+---
+
+ok, now create PR against /develop branch. Joscha just pushed his changes there.
