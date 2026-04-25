@@ -228,11 +228,17 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.screen === "generating" ? state.videoId : null])
 
-  // Map elapsed time → which step the horizontal indicator highlights.
-  // Step 1 = Analyze (instant), Step 2 = Draft (~1s in), Step 3 = Render (most time),
-  // Step 4 = Finalize (last few seconds).
+  // Map state → which step the horizontal indicator highlights.
+  // Analyze flashes briefly; Draft sits ~5s; Render takes most of the time;
+  // Finalize lights up in the last seconds before status flips to "success".
   const generatingCurrent =
-    scriptStep < 2 ? Math.max(scriptStep, 1) : elapsedSeconds < 75 ? 3 : 4
+    scriptStep < 2
+      ? 1
+      : elapsedSeconds < 5
+        ? 2
+        : elapsedSeconds < 75
+          ? 3
+          : 4
 
   return (
     <div className="flex min-h-screen flex-col bg-background font-sans text-foreground">
