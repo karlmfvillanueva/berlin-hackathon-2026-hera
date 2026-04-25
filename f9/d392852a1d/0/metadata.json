@@ -1,0 +1,101 @@
+{
+  "cli_version": "0.5.6",
+  "checkpoint_id": "f9d392852a1d",
+  "session_id": "5cb3a18d-c7b1-44a3-9734-f8226f26519f",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-25T14:24:33.247944Z",
+  "branch": "feat/mvp-build",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "backend/pyproject.toml",
+    "backend/scripts/probe_hera.py",
+    "backend/src/agent/image_scorer.py",
+    "backend/src/agent/models.py",
+    "backend/src/main.py",
+    "backend/uv.lock",
+    "frontend/bun.lock",
+    "frontend/index.html",
+    "frontend/package.json",
+    "frontend/src/App.css",
+    "frontend/src/components/AttributeCard.tsx",
+    "frontend/src/components/StatusRow.tsx",
+    "frontend/src/components/VideoPlayer.tsx",
+    "frontend/src/index.css",
+    "frontend/vite.config.ts"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-7[1m]",
+  "turn_id": "a3eac1d71afe",
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 82628,
+    "cache_read_tokens": 297869,
+    "output_tokens": 5179,
+    "api_call_count": 4
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-25T14:24:33.241666Z",
+    "agent_lines": 148,
+    "agent_removed": 35,
+    "human_added": 954,
+    "human_modified": 214,
+    "human_removed": 0,
+    "total_committed": 1316,
+    "total_lines_changed": 1441,
+    "agent_percentage": 12.699514226231784,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 199,
+      "user_lines_removed": 112,
+      "agent_lines_added": 128,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "backend/src/agent/classifier.py": 138,
+        "frontend/bun.lock": 56,
+        "frontend/package.json": 3,
+        "frontend/vite.config.ts": 2
+      },
+      "user_removed_per_file": {
+        "frontend/package.json": 1,
+        "frontend/src/App.css": 110,
+        "frontend/vite.config.ts": 1
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 650,
+      "user_lines_removed": 102,
+      "agent_lines_added": 258,
+      "agent_lines_removed": 113,
+      "user_added_per_file": {
+        "backend/src/agent/__init__.py": 23,
+        "backend/src/agent/classifier.py": 138,
+        "backend/src/agent/orchestrator.py": 43,
+        "backend/src/agent/prompt_builder.py": 63,
+        "backend/src/main.py": 67,
+        "backend/uv.lock": 138,
+        "frontend/src/api/client.ts": 57,
+        "frontend/src/components/Header.tsx": 17,
+        "frontend/src/components/UrlInput.tsx": 67,
+        "frontend/src/index.css": 8,
+        "frontend/src/types.ts": 29
+      },
+      "user_removed_per_file": {
+        "frontend/src/index.css": 102
+      }
+    }
+  ]
+}

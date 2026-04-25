@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.5.6",
+  "checkpoint_id": "f9d392852a1d",
+  "strategy": "manual-commit",
+  "branch": "feat/mvp-build",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "backend/pyproject.toml",
+    "backend/scripts/probe_hera.py",
+    "backend/src/agent/image_scorer.py",
+    "backend/src/agent/models.py",
+    "backend/src/main.py",
+    "backend/uv.lock",
+    "frontend/bun.lock",
+    "frontend/index.html",
+    "frontend/package.json",
+    "frontend/src/App.css",
+    "frontend/src/components/AttributeCard.tsx",
+    "frontend/src/components/StatusRow.tsx",
+    "frontend/src/components/VideoPlayer.tsx",
+    "frontend/src/index.css",
+    "frontend/vite.config.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f9/d392852a1d/0/metadata.json",
+      "transcript": "/f9/d392852a1d/0/full.jsonl",
+      "content_hash": "/f9/d392852a1d/0/content_hash.txt",
+      "prompt": "/f9/d392852a1d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 82628,
+    "cache_read_tokens": 297869,
+    "output_tokens": 5179,
+    "api_call_count": 4
+  }
+}

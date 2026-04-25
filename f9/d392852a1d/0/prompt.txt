@@ -1,0 +1,9 @@
+there is @architecture/ here. I want you to review it and check what to adapt for @.planning/ to account for this.
+
+---
+
+what's the main diff between planning and architecture?
+
+---
+
+ok, so would you say best way to think about it then would be planning = pure mvp, then architecture is everything post mvp?
