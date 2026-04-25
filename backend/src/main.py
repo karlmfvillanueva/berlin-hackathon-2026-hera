@@ -194,16 +194,19 @@ async def get_listing(body: ListingRequest) -> ListingResponse:
 @app.post("/api/generate", response_model=GenerateResponse)
 async def generate_video(body: GenerateRequest) -> GenerateResponse:
     """Submit a Hera video job using a pre-computed AgentDecision."""
+    # Hera's reference_image_urls is for brand/style references (logo, palette).
+    # Listing content photos go in assets[] with type=image.
+    image_assets = [{"type": "image", "url": u} for u in body.decision.selected_image_urls[:5]]
     payload = {
         "prompt": body.decision.hera_prompt,
         "duration_seconds": 15,
         "outputs": [{"format": "mp4", "aspect_ratio": "9:16", "fps": "30", "resolution": "1080p"}],
-        "reference_image_urls": body.decision.selected_image_urls[:5],
+        "assets": image_assets,
     }
     log.info(
         "generate: submitting to Hera. prompt_chars=%d images=%d",
         len(body.decision.hera_prompt),
-        len(payload["reference_image_urls"]),
+        len(image_assets),
     )
     try:
         r = await app.state.http.post("/videos", json=payload)
@@ -254,17 +257,18 @@ async def regenerate_video(body: RegenerateRequest) -> RegenerateResponse:
 
     No re-classification — same decision in, new video_id out.
     """
+    image_assets = [{"type": "image", "url": u} for u in body.decision.selected_image_urls[:5]]
     payload = {
         "prompt": body.decision.hera_prompt,
         "duration_seconds": 15,
         "outputs": [{"format": "mp4", "aspect_ratio": "9:16", "fps": "30", "resolution": "1080p"}],
-        "reference_image_urls": body.decision.selected_image_urls[:5],
+        "assets": image_assets,
     }
     log.info(
         "regenerate: resubmitting to Hera. listing_url=%s prompt_chars=%d images=%d",
         body.listing_url,
         len(body.decision.hera_prompt),
-        len(payload["reference_image_urls"]),
+        len(image_assets),
     )
     try:
         r = await app.state.http.post("/videos", json=payload)
