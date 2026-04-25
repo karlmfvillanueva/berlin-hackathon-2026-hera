@@ -1,17 +1,93 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* ============================================================
+   Design Tokens — Quiet Luxury + Hera-wink (light mode only)
+   See docs/superpowers/specs/2026-04-25-frontend-design-system-design.md
+   ============================================================ */
 
 @theme {
+  /* Fonts */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Radius — exposed as Tailwind utilities (rounded, rounded-lg, etc.) */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-full: 9999px;
 }
 
+:root {
+  /* shadcn semantic tokens — light mode (Phase 1) */
+  --background: oklch(0.98 0.005 80);          /* #FAFAF7 — warm bone */
+  --foreground: oklch(0.10 0 0);               /* #0A0A0A — near-black */
+  --card: oklch(1 0 0);                         /* #FFFFFF — pure white */
+  --card-foreground: oklch(0.10 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.10 0 0);
+  --primary: oklch(0.65 0.20 35);              /* #F94B12 — Hera coral */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.34 0.04 160);           /* #2D4A3E — forest */
+  --secondary-foreground: oklch(0.98 0.005 80);
+  --muted: oklch(0.93 0.02 80);                /* #F0EDE4 */
+  --muted-foreground: oklch(0.45 0.01 80);     /* #6B6963 — warm gray */
+  --accent: oklch(0.93 0.02 80);               /* same as muted */
+  --accent-foreground: oklch(0.10 0 0);
+  --destructive: oklch(0.50 0.20 25);          /* #B91C1C — deep red */
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.90 0.02 80);               /* #E8E5DD */
+  --input: oklch(0.90 0.02 80);
+  --ring: oklch(0.34 0.04 160);                /* forest */
+}
+
+/* shadcn @theme inline mapping — surfaces semantic vars as Tailwind colors */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+/* Reset */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
+* {
+  border-color: var(--border);
+}
+
 body {
   margin: 0;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Native checkbox tinting → forest */
+input[type="checkbox"] {
+  accent-color: var(--secondary);
 }
