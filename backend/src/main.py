@@ -199,7 +199,7 @@ async def generate_video(body: GenerateRequest) -> GenerateResponse:
     image_assets = [{"type": "image", "url": u} for u in body.decision.selected_image_urls[:5]]
     payload = {
         "prompt": body.decision.hera_prompt,
-        "duration_seconds": 15,
+        "duration_seconds": body.decision.duration_seconds,
         "outputs": [{"format": "mp4", "aspect_ratio": "9:16", "fps": "30", "resolution": "1080p"}],
         "assets": image_assets,
     }
@@ -260,7 +260,7 @@ async def regenerate_video(body: RegenerateRequest) -> RegenerateResponse:
     image_assets = [{"type": "image", "url": u} for u in body.decision.selected_image_urls[:5]]
     payload = {
         "prompt": body.decision.hera_prompt,
-        "duration_seconds": 15,
+        "duration_seconds": body.decision.duration_seconds,
         "outputs": [{"format": "mp4", "aspect_ratio": "9:16", "fps": "30", "resolution": "1080p"}],
         "assets": image_assets,
     }

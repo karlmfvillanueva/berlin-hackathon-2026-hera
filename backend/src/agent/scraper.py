@@ -49,25 +49,30 @@ async def scrape_listing(url: str) -> ScrapedListing | None:
                 await page.wait_for_timeout(_SETTLE_MS)
 
                 if "/rooms/" not in page.url:
-                    log.warning(
-                        "scraper: redirected off listing url=%s final=%s", url, page.url
-                    )
+                    log.warning("scraper: redirected off listing url=%s final=%s", url, page.url)
                     return None
 
                 ld = await _read_json_ld(page)
                 og = await _read_og_tags(page)
                 dom_photos = await _read_dom_photos(page)
+                review_quotes = await _read_review_quotes(page)
+                review_tags = await _read_review_tags(page)
 
-                listing = _assemble(url, ld, og, dom_photos)
+                listing = _assemble(url, ld, og, dom_photos, review_quotes, review_tags)
                 if listing is None:
                     log.warning("scraper: could not assemble listing url=%s", url)
                     return None
 
                 log.info(
-                    "scraper: ok title=%r photos=%d desc_chars=%d",
+                    "scraper: ok title=%r photos=%d desc_chars=%d "
+                    "review_quotes=%d review_tags=%d rating=%s reviews_count=%s",
                     listing.title[:60],
                     len(listing.photos),
                     len(listing.description),
+                    len(listing.review_quotes),
+                    len(listing.review_tags),
+                    listing.rating_overall,
+                    listing.reviews_count,
                 )
                 return listing
             finally:
@@ -136,6 +141,134 @@ async def _read_dom_photos(page: Page) -> list[str]:
     return urls
 
 
+async def _read_review_quotes(page: Page, max_n: int = 6) -> list[str]:
+    """Best-effort: extract up to N verbatim guest review quotes from the DOM.
+
+    Reviews are lazy-loaded; we try to scroll the reviews section into view
+    first. Selectors try several patterns because Airbnb's React DOM is
+    obfuscated — the `[lang]` attribute on review text is the most stable
+    signal because it's used for translation/accessibility. Returns whatever
+    we find, empty list on full miss. The Reviews Evaluation agent already
+    handles sparse / empty input gracefully.
+    """
+    try:
+        await page.locator(
+            '[data-section-id*="REVIEWS"], [data-pageid*="reviews"]'
+        ).first.scroll_into_view_if_needed(timeout=5000)
+        await page.wait_for_timeout(800)
+    except Exception:
+        pass
+
+    quotes: list[str] = []
+    seen: set[str] = set()
+    selector_candidates = (
+        '[data-review-id] span[lang]',
+        '[data-section-id*="REVIEWS"] span[lang]',
+        '[data-pageid*="reviews"] span[lang]',
+        'div[role="article"] span[lang]',
+    )
+    for selector in selector_candidates:
+        try:
+            loc = page.locator(selector)
+            count = await loc.count()
+        except Exception:
+            continue
+        for i in range(min(count, 30)):
+            try:
+                text = await loc.nth(i).text_content()
+            except Exception:
+                continue
+            if not text:
+                continue
+            cleaned = text.strip()
+            # Real reviews are 30–500 chars; below = UI noise, above = the
+            # "show translation" trailing block bleeding into another node.
+            if not (30 <= len(cleaned) <= 500):
+                continue
+            # Cap at 280 chars: long quotes don't fit short-form video text.
+            cleaned = cleaned[:280]
+            if cleaned in seen:
+                continue
+            seen.add(cleaned)
+            quotes.append(cleaned)
+            if len(quotes) >= max_n:
+                return quotes
+        if quotes:
+            # Selector worked — stop trying others.
+            return quotes
+    return quotes
+
+
+async def _read_review_tags(page: Page, max_n: int = 8) -> list[str]:
+    """Best-effort: extract review category labels (Cleanliness, Communication,
+    Location, …) and any review-tag pills. Returns short 1–3-word strings.
+    """
+    tags: list[str] = []
+    seen: set[str] = set()
+    selector_candidates = (
+        '[data-testid*="review-tag"]',
+        '[data-section-id*="REVIEWS"] button[type="button"] span',
+    )
+    for selector in selector_candidates:
+        try:
+            loc = page.locator(selector)
+            count = await loc.count()
+        except Exception:
+            continue
+        for i in range(min(count, 30)):
+            try:
+                text = await loc.nth(i).text_content()
+            except Exception:
+                continue
+            if not text:
+                continue
+            cleaned = text.strip()
+            words = cleaned.split()
+            # Filter to plausible tag pills: 1–3 words, alphabetic-ish.
+            if not (1 <= len(words) <= 3) or len(cleaned) > 32:
+                continue
+            if not any(c.isalpha() for c in cleaned):
+                continue
+            if cleaned in seen:
+                continue
+            seen.add(cleaned)
+            tags.append(cleaned)
+            if len(tags) >= max_n:
+                return tags
+        if tags:
+            return tags
+    return tags
+
+
+def _extract_rating_stats(ld: dict | None) -> tuple[float | None, int | None]:
+    """Pull (rating_overall, reviews_count) from JSON-LD aggregateRating.
+
+    Both fields are optional; returns (None, None) on full miss.
+    """
+    if not isinstance(ld, dict):
+        return (None, None)
+    agg = ld.get("aggregateRating")
+    if not isinstance(agg, dict):
+        return (None, None)
+    rating: float | None = None
+    count: int | None = None
+    rv = agg.get("ratingValue")
+    if isinstance(rv, (int, float)):
+        rating = float(rv)
+    elif isinstance(rv, str):
+        # Locales sometimes use a comma decimal separator: "4,94".
+        try:
+            rating = float(rv.replace(",", "."))
+        except ValueError:
+            rating = None
+    rc = agg.get("ratingCount") or agg.get("reviewCount")
+    if isinstance(rc, int):
+        count = rc
+    elif isinstance(rc, str) and rc.isdigit():
+        count = int(rc)
+    return (rating, count)
+
+
 # ---------------------------------------------------------------------------
 # Assembly + helpers
 # ---------------------------------------------------------------------------
@@ -146,17 +279,15 @@ def _assemble(
     ld: dict | None,
     og: dict[str, str],
     dom_photos: list[str],
+    review_quotes: list[str] | None = None,
+    review_tags: list[str] | None = None,
 ) -> ScrapedListing | None:
-    """Merge JSON-LD + og:tags + DOM photos into a ScrapedListing.
+    """Merge JSON-LD + og:tags + DOM photos + review extracts into a ScrapedListing.
 
     Requires at minimum: a non-empty title and at least 1 photo. Otherwise None.
     """
     og_title = (og.get("og:title") or "").strip()
-    title = _clean_title(
-        (ld.get("name") if ld else None)
-        or og_title
-        or ""
-    )
+    title = _clean_title((ld.get("name") if ld else None) or og_title or "")
 
     description = ""
     if ld and isinstance(ld.get("description"), str):
@@ -179,7 +310,7 @@ def _assemble(
 
     photos: list[Photo] = []
     if ld:
-        for img in (ld.get("image") or []):
+        for img in ld.get("image") or []:
             if isinstance(img, str):
                 img_url = img
             elif isinstance(img, dict):
@@ -201,7 +332,8 @@ def _assemble(
     if not title or not photos:
         return None
 
-    rating = _format_rating(ld) if ld else ""
+    rating_display = _format_rating(ld) if ld else ""
+    rating_overall, reviews_count = _extract_rating_stats(ld)
 
     return ScrapedListing(
         url=url,
@@ -210,8 +342,15 @@ def _assemble(
         amenities=[],  # JSON-LD rarely lists these reliably; skip for now
         photos=photos[:10],
         location=location,
-        price_display=rating,  # repurpose: show rating since price isn't in JSON-LD
+        # `price_display` continues to surface the rating string for the
+        # frontend (price isn't reliably in JSON-LD); structured rating /
+        # review fields go to their semantic homes for the agent layer.
+        price_display=rating_display,
         bedrooms_sleeps=bedrooms_sleeps,
+        rating_overall=rating_overall,
+        reviews_count=reviews_count,
+        review_quotes=list(review_quotes or []),
+        review_tags=list(review_tags or []),
     )
 
 

@@ -13,11 +13,13 @@ credentials/
 .idea/
 .planning/
 .ideation/
+.mcp.json
 
 # Tool working dirs / generated output
 .entire/
 design-extract-output/
 .playwright-mcp/
+.superpowers/
 
 # OS
 .DS_Store
@@ -41,3 +43,8 @@ node_modules/
 frontend/dist/
 frontend/build/
 .eslintcache
+# design-system uses bun.lock; keep the npm lockfile out
+frontend/package-lock.json
+
+# Ad-hoc screenshots dropped at repo root
+/*.png
