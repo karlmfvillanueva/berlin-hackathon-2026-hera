@@ -24,8 +24,9 @@ Until this is decided, treat the codebase as a generic Hera proxy. Once decided,
 ## External references
 
 - **Hackathon plan (Notion):** https://www.notion.so/karlvillanueva/Berlin-Hackathon-2026-34d942178bfd8059b2ecc0b41790cf44?source=copy_link
-- **Hera API reference:** https://docs.hera.video/api-reference/introduction
-- **Hera MCP server:** https://docs.hera.video/mcp-server
+- **Local Hera reference:** [`HERA.md`](./HERA.md) — full local copy of API + MCP docs (endpoints, schemas, enums, example payloads, agent levers). Read this instead of re-fetching the docs.
+- **Hera API reference (upstream):** https://docs.hera.video/api-reference/introduction
+- **Hera MCP server (upstream):** https://docs.hera.video/mcp-server
 - **Hera app:** https://app.hera.video/
 
 ## Architecture

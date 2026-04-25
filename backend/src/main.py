@@ -16,10 +16,12 @@ from pydantic import BaseModel, Field
 
 from src.logger import log
 
+load_dotenv(dotenv_path="../credentials/credentials.env")
 load_dotenv(dotenv_path="../.env")
 load_dotenv()
 
 HERA_API_KEY = os.getenv("HERA_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_HACKATHON_KEY", "")
 HERA_BASE_URL = "https://api.hera.video/v1"
 
 ALLOWED_ORIGINS = [
