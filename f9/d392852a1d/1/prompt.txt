@@ -1,0 +1,135 @@
+I want you to go ahead and execut @.planning/PLAN.md . Dispatch agents as necessary. Before you start, tell me what will happen
+
+---
+
+can you tell me what the mvp looks like?
+
+---
+
+ok right now, create a new branch, then dispatch the frontend and backend agents. the design should already be done as it's added to the hera-video-hackathon.pen. So create new branch, dispatch 2 agents, adn create mvp. once mvp is done, i will run test with airbnb url and we work from there
+
+---
+
+<task-notification>
+<task-id>a0430b9881815dd02</task-id>
+<tool-use-id>toolu_0111Cf1e2rM3Xo3mxe8LHSqZ</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-karlvillanueva-Github-berlin-hackathon-2026-hera/f8852ce7-a927-4d35-930d-9b7ccacfb351/tasks/a0430b9881815dd02.output</output-file>
+<status>completed</status>
+<summary>Agent "Build frontend 4-screen flow" completed</summary>
+<result>Tailwind v4 uses `@theme` in CSS with `--font-sans`. Now I have everything I need. Let me present the plan before building.
+
+---
+
+Here is my plan. Please confirm before I start.
+
+**What I understood:**
+Build a 4-screen Vite + React + TypeScript SPA for a hackathon demo. The agent scrapes an Airbnb listing, shows the editorial decisions, generates a video via Hera, and displays the result. The state machine is `idle → reviewing → generating → done` plus an error state. No routing library, no state library, no tests.
+
+**Steps I will take:**
+
+1. **Install Tailwind v4** — `bun add tailwindcss @tailwindcss/vite`. Update `vite.config.ts` to add the `@tailwindcss/vite` plugin. Replace `index.css` with `@import "tailwindcss"` + `@theme` block for Inter + design tokens. Add Inter `&lt;link&gt;` to `index.html`.
+
+2. **Write `types.ts`** — `ScrapedListing`, `AgentDecision`, `JobStatus`, and API response shapes.
+
+3. **Write `api/client.ts`** — `postListing`, `postGenerate`, `pollStatus` typed against the contract.
+
+4. **Write components** (all named exports):
+   - `Header.tsx` — step indicator bar
+   - `UrlInput.tsx` — screen 1 URL row
+   - `AttributeCard.tsx` — screen 2 configurable card
+   - `StatusRow.tsx` — screen 3 step row (done/active/pending)
+   - `VideoPlayer.tsx` — screen 4 9:16 player frame
+   - `RationaleRail.tsx` — screen 4 right rail
+   - `ErrorState.tsx` — error card
+
+5. **Rewrite `App.tsx`** — state machine with `useState`. Handles all four screens + error. Polling with 5s interval, 3-minute cap, `useEffect` cleanup + `cancelled` ref.
+
+6. **Run `bun install &amp;&amp; bun run dev`** and verify each screen renders.
+
+**Things that are clear:**
+- Stack: Vite + React 19 + TypeScript + Tailwind v4. No shadcn. No routing library.
+- Tailwind v4 uses `@theme` in CSS (no `tailwind.config.js` needed).
+- Font: Inter via Google Fonts `&lt;link&gt;` in `index.html`, referenced via `@theme { --font-sans: "Inter", sans-serif }`.
+- The fixture URL `https://www.airbnb.com/rooms/kreuzberg-loft-demo` is pre-filled as input `defaultValue`.
+- Design: sharp corners (0 border radius), black/white/gray palette per the spec, no gradients, no glassmorphism.
+
+**Ambiguities I'm resolving myself:**
+- The `App.css` file exists but is imported in the old `App.tsx`. I'll stop importing it — the new `App.tsx` won't reference it. I won't delete it (surgical change rule).
+- Tailwind v4 doesn't need a `tailwind.config.js`. Using `@theme` in CSS for the font override.
+- The `--font-sans` Tailwind v4 variable is `--font-sans` (not `--font-family-sans`) based on the docs snippets.
+
+Do you want me to proceed?</result>
+<usage><total_tokens>40801</total_tokens><tool_uses>11</tool_uses><duration_ms>43361</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae3745088636f5232</task-id>
+<tool-use-id>toolu_013Q8oPb7YSCRZDCiYxTxBmo</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-karlvillanueva-Github-berlin-hackathon-2026-hera/f8852ce7-a927-4d35-930d-9b7ccacfb351/tasks/ae3745088636f5232.output</output-file>
+<status>completed</status>
+<summary>Agent "Build backend agent + endpoints" completed</summary>
+<result>```
+Project type: Python (uv + FastAPI/uvicorn)
+Command: uv run uvicorn src.main:app --host 127.0.0.1 --port 8000
+Status: running
+URL: http://localhost:8000
+```</result>
+<usage><total_tokens>71071</total_tokens><tool_uses>40</tool_uses><duration_ms>192518</duration_ms></usage>
+</task-notification>
+
+---
+
+i just ran both, no output on either
+
+---
+
+<task-notification>
+<task-id>a0430b9881815dd02</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-karlvillanueva-Github-berlin-hackathon-2026-hera/f8852ce7-a927-4d35-930d-9b7ccacfb351/tasks/a0430b9881815dd02.output</output-file>
+<status>completed</status>
+<summary>Agent "Build frontend 4-screen flow" completed</summary>
+<result>Production build succeeds in 59ms, 24 modules, zero errors. 12KB CSS (Tailwind tree-shaken), 204KB JS (React 19 + app code).
+
+---
+
+Here is the honest summary.
+
+**Files created/modified:**
+
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/vite.config.ts` — added `@tailwindcss/vite` plugin
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/index.html` — title updated, Inter Google Fonts link added
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/index.css` — replaced wholesale with Tailwind v4 `@import` + `@theme` block for Inter
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/App.css` — deleted
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/types.ts` — new
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/api/client.ts` — new
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/App.tsx` — replaced wholesale
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/components/Header.tsx` — new
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/components/UrlInput.tsx` — new
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/components/AttributeCard.tsx` — new
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/components/StatusRow.tsx` — new
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/components/VideoPlayer.tsx` — new
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/components/RationaleRail.tsx` — new
+- `/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/frontend/src/components/ErrorState.tsx` — new
+
+**Tailwind setup:** Tailwind v4 via `@tailwindcss/vite` plugin — no `tailwind.config.js` needed. Font override via `@theme { --font-sans: "Inter", ... }` in `index.css`. Single `@import "tailwindcss"` directive.
+
+**Visual verification:**
+
+- Screen 1 (idle): server starts, compiles clean — visually unverified because I cannot open a browser. Structure and classes are correct per spec.
+- Screens 2, 3, 4, error: all unverified visually — backend not running. The state transitions, polling logic, and component trees are wired correctly but I have not seen them render.
+- Screen 4 (result screen) specifically: unverified. The `VideoPlayer` and `RationaleRail` are the highest-risk components for visual quality on demo day. Recommend verifying those manually once the backend returns a real `file_url`.
+
+**One judgment call worth flagging:** `AttributeCard` uses a 2px border (via inline style) for the "approved" state rather than a color shift, since the design is already monochrome — a thicker border is the cleanest visual signal without adding color. The label text also switches to "✓ Approved". Both toggles happen locally; nothing is sent to the backend.</result>
+<usage><total_tokens>66502</total_tokens><tool_uses>35</tool_uses><duration_ms>242704</duration_ms></usage>
+</task-notification>
+
+---
+
+ok run the server, let's test
+
+---
+
+i am psting it on browser but nothing happening [Image #1]
