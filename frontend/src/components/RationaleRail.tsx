@@ -38,6 +38,27 @@ export function RationaleRail({ decision }: RationaleRailProps) {
         ))}
       </div>
 
+      {decision.beliefs_applied && decision.beliefs_applied.length > 0 && (
+        <>
+          <div className="h-px bg-black" />
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-[1.5px]">
+              BELIEFS APPLIED
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {decision.beliefs_applied.map((belief) => (
+                <span
+                  key={belief}
+                  className="text-[12px] font-normal text-black border border-[#E5E5E5] px-2 py-0.5"
+                >
+                  {belief.replace(/_/g, " ")}
+                </span>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       <details className="mt-auto">
         <summary className="text-[13px] font-bold text-black cursor-pointer list-none">
           View full rationale →
