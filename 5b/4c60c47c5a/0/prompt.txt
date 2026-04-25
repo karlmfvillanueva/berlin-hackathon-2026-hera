@@ -1,0 +1,11 @@
+'/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/architecture' use pm agent, i need you to create the next tickets. Goal is to implement'/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/architecture/02-architecture.md'. We are 2 people working on 2 different branches at the same time (also think each one can have multiple agents). I need you to split it into tickets that do not have overlapping dependencies that can be merged with as few conflicts or none as possible. Have it assign tickets to Karl and Joscha (me and other person). Ask any clarifying questions
+
+---
+
+1 = ticket phase 2 for now
+2 = hackathon is 24h
+3 = joscha can do backend better than me, so karl more frontendy if needed
+4 = ok let's do layer split if that minimizes conflict
+5 = create an implementation.md under '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/architecture'. 
+
+6 = stick to architecture, we are building airbnb url listing to video via hera. that's it

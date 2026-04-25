@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.6",
+  "checkpoint_id": "5b4c60c47c5a",
+  "strategy": "manual-commit",
+  "branch": "docs/phase2-implementation-plan",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "architecture/implementation.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5b/4c60c47c5a/0/metadata.json",
+      "transcript": "/5b/4c60c47c5a/0/full.jsonl",
+      "content_hash": "/5b/4c60c47c5a/0/content_hash.txt",
+      "prompt": "/5b/4c60c47c5a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 27,
+    "cache_creation_tokens": 82293,
+    "cache_read_tokens": 933193,
+    "output_tokens": 7585,
+    "api_call_count": 12
+  }
+}
