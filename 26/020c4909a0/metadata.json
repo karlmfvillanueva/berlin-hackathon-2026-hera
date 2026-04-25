@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.5.6",
+  "checkpoint_id": "26020c4909a0",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "HERA.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/26/020c4909a0/0/metadata.json",
+      "transcript": "/26/020c4909a0/0/full.jsonl",
+      "content_hash": "/26/020c4909a0/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1656,
+    "cache_creation_tokens": 10175,
+    "cache_read_tokens": 170851,
+    "output_tokens": 8693,
+    "api_call_count": 2
+  }
+}
