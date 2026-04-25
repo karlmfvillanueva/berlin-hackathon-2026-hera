@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./index.css";
 import type { AppState, AgentDecision, ScrapedListing } from "./types";
-import { postListing, postGenerate, pollStatus } from "./api/client";
+import { postListing, postGenerate, pollStatus, postRegenerate } from "./api/client";
 import { Header } from "./components/Header";
 import { UrlInput } from "./components/UrlInput";
 import { AttributeCard } from "./components/AttributeCard";
@@ -28,6 +28,10 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [scriptStep, setScriptStep] = useState(0);
+  const [outpaintEnabled, setOutpaintEnabled] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState(false);
 
   const pollIntervalRef = useRef<number | null>(null);
   const pollStartRef = useRef<number>(0);
@@ -43,6 +47,8 @@ export default function App() {
     clearPolling();
     setElapsedSeconds(0);
     setScriptStep(0);
+    setOutpaintEnabled(false);
+    setDownloadError(false);
     setState({ screen: "idle" });
   }
 
@@ -50,7 +56,7 @@ export default function App() {
     setListingUrl(url);
     setSubmitting(true);
     try {
-      const { listing, decision } = await postListing(url);
+      const { listing, decision } = await postListing(url, outpaintEnabled);
       setState({ screen: "reviewing", listing, decision });
     } catch (err) {
       setState({
@@ -68,7 +74,7 @@ export default function App() {
     setElapsedSeconds(0);
     try {
       const { video_id } = await postGenerate(listingUrl, listing, decision);
-      setState({ screen: "generating", listing, decision, videoId: video_id });
+      setState({ screen: "generating", listing, decision, videoId: video_id, outpaint_enabled: outpaintEnabled });
     } catch (err) {
       setState({
         screen: "error",
@@ -76,6 +82,61 @@ export default function App() {
       });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleRegenerate() {
+    if (state.screen !== "done") return;
+    const { listing, decision } = state;
+    setRegenerating(true);
+    try {
+      const { video_id, decision: newDecision } = await postRegenerate(listingUrl, listing, decision);
+      setState({ screen: "generating", listing, decision: newDecision, videoId: video_id, outpaint_enabled: outpaintEnabled });
+    } catch (err) {
+      setState({
+        screen: "error",
+        message: err instanceof Error ? err.message : "Failed to regenerate.",
+      });
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
+  async function handleDownload() {
+    if (state.screen !== "done") return;
+    setDownloadError(false);
+    setDownloading(true);
+
+    async function fetchAndTrigger(fileUrl: string): Promise<boolean> {
+      const res = await fetch(fileUrl);
+      if (!res.ok) return false;
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = "hera-video.mp4";
+      a.click();
+      URL.revokeObjectURL(objectUrl);
+      return true;
+    }
+
+    try {
+      const ok = await fetchAndTrigger(state.fileUrl);
+      if (!ok) {
+        // Refresh the file URL via polling and retry once
+        const data = await pollStatus(state.videoId);
+        const freshUrl = data.outputs[0]?.file_url ?? "";
+        if (freshUrl) {
+          const retryOk = await fetchAndTrigger(freshUrl);
+          if (!retryOk) setDownloadError(true);
+        } else {
+          setDownloadError(true);
+        }
+      }
+    } catch {
+      setDownloadError(true);
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -113,7 +174,7 @@ export default function App() {
         if (data.status === "success") {
           clearPolling();
           const fileUrl = data.outputs[0]?.file_url ?? "";
-          setState({ screen: "done", listing, decision, fileUrl });
+          setState({ screen: "done", listing, decision, fileUrl, videoId });
         } else if (data.status === "failed") {
           clearPolling();
           setState({
@@ -154,7 +215,12 @@ export default function App() {
       {/* Screen 1 — idle */}
       {state.screen === "idle" && (
         <main className="flex-1 flex items-center justify-center">
-          <UrlInput onSubmit={handleGenerate} loading={submitting} />
+          <UrlInput
+            onSubmit={handleGenerate}
+            loading={submitting}
+            outpaintEnabled={outpaintEnabled}
+            onOutpaintChange={setOutpaintEnabled}
+          />
         </main>
       )}
 
@@ -255,6 +321,9 @@ export default function App() {
               state={scriptStep >= 1 ? "done" : "pending"}
               label="Analyzed listing"
             />
+            {state.outpaint_enabled && (
+              <StatusRow state="active" label="Outpainting photos to 9:16…" />
+            )}
             <StatusRow
               state={scriptStep >= 2 ? "done" : scriptStep === 1 ? "active" : "pending"}
               label="Drafted script with hook + pacing"
@@ -295,20 +364,27 @@ export default function App() {
               <VideoPlayer fileUrl={state.fileUrl} />
             </div>
 
-            <div className="flex gap-3">
-              <a
-                href={state.fileUrl}
-                download
-                className="bg-black text-white text-[14px] font-bold px-6 py-3.5 border border-black hover:bg-[#1A1A1A] transition-colors duration-100 no-underline inline-flex items-center"
-              >
-                ↓&nbsp;&nbsp;Download MP4
-              </a>
-              <button
-                onClick={goIdle}
-                className="bg-white border border-black text-[14px] font-normal text-black px-6 py-3.5 cursor-pointer hover:bg-[#FAFAFA] transition-colors duration-100"
-              >
-                ↻&nbsp;&nbsp;Regenerate
-              </button>
+            <div className="flex gap-3 flex-col">
+              {downloadError ? (
+                <p className="text-[13px] text-black">Download failed. Try regenerating.</p>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => void handleDownload()}
+                    disabled={downloading}
+                    className="bg-black text-white text-[14px] font-bold px-6 py-3.5 border border-black hover:bg-[#1A1A1A] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-100 inline-flex items-center cursor-pointer"
+                  >
+                    ↓&nbsp;&nbsp;{downloading ? "Downloading..." : "Download MP4"}
+                  </button>
+                  <button
+                    onClick={() => void handleRegenerate()}
+                    disabled={regenerating}
+                    className="bg-white border border-black text-[14px] font-normal text-black px-6 py-3.5 cursor-pointer hover:bg-[#FAFAFA] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-100"
+                  >
+                    ↻&nbsp;&nbsp;{regenerating ? "Regenerating..." : "Regenerate"}
+                  </button>
+                </div>
+              )}
               <button
                 onClick={() => void navigator.clipboard.writeText(state.fileUrl)}
                 className="bg-white border border-black text-[14px] font-normal text-black px-6 py-3.5 cursor-pointer hover:bg-[#FAFAFA] transition-colors duration-100"
