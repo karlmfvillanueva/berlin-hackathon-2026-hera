@@ -72,32 +72,83 @@ export type AgentDecision = {
   duration_seconds?: number;
   // Editorial Judge metadata — set when Final Assembly's multi-sample path
   // ran 3 candidates and a Judge agent picked the strongest brief.
-  judge_score?: number | null;
-  judge_rationale?: string | null;
-  judge_scores_per_brief?: JudgeBriefScore[] | null;
+  judge_score?: number;
+  judge_rationale?: string;
+  judge_scores_per_brief?: JudgeBriefScore[];
 };
 
 export type JudgeBriefScore = {
   index: number;
   aggregate?: number;
   weakness?: string;
+  [key: string]: unknown;
+};
+
+// Phase 1 (storyboard approval) types — mirror backend Pydantic models.
+
+export type Language = "de" | "en" | "es";
+export type Tone = "luxury" | "family" | "urban" | "cozy";
+export type HookKind = "amenity" | "location" | "review" | "view";
+export type EmphasisSource = "amenity" | "review" | "location";
+
+export type HookOption = {
+  id: string;
+  label: string;
+  kind: HookKind;
+  rationale: string;
+};
+
+export type EmphasisOption = {
+  slug: string;
+  label: string;
+  score: number;
+  source: EmphasisSource;
+};
+
+export type Phase1Decision = {
+  icp?: IcpClassification;
+  location_enrichment?: Record<string, unknown>;
+  reviews_evaluation?: ReviewsEvaluation;
+  visual_system?: VisualSystem;
+  suggested_language: Language;
+  suggested_tone: Tone;
+  emphasis_options: EmphasisOption[];
+  hook_options: HookOption[];
+  duration_seconds: number;
+  outpaint_enabled: boolean;
+};
+
+export type Overrides = {
+  language: Language;
+  tone: Tone;
+  emphasis: string[]; // selected emphasis slugs
+  deemphasis: string[]; // explicitly downweighted slugs
+  hook_id: string; // hook_options.id or "auto"
 };
 
 export type JobStatus = "in-progress" | "success" | "failed";
 
 export type AppState =
   | { screen: "idle" }
-  | { screen: "reviewing"; listing: ScrapedListing; decision: AgentDecision }
+  | {
+      screen: "storyboard";
+      listing: ScrapedListing;
+      phase1: Phase1Decision;
+      overrides: Overrides;
+    }
   | {
       screen: "generating";
       listing: ScrapedListing;
+      phase1: Phase1Decision;
+      overrides: Overrides;
       decision: AgentDecision;
       videoId: string;
-      outpaint_enabled?: boolean;
     }
   | {
       screen: "done";
       listing: ScrapedListing;
+      phase1: Phase1Decision;
+      overrides: Overrides;
       decision: AgentDecision;
       fileUrl: string;
       videoId: string;

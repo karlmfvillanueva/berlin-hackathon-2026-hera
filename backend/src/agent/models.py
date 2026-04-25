@@ -1,8 +1,13 @@
 """Pydantic models for the agent layer. All data shapes live here."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+Language = Literal["de", "en", "es"]
+Tone = Literal["luxury", "family", "urban", "cozy"]
+HookKind = Literal["amenity", "location", "review", "view"]
+EmphasisSource = Literal["amenity", "review", "location"]
 
 
 class Photo(BaseModel):
@@ -64,15 +69,58 @@ class Belief(BaseModel):
     confidence: float  # 0.0–1.0
 
 
+class HookOption(BaseModel):
+    id: str
+    label: str
+    kind: HookKind
+    rationale: str
+
+
+class EmphasisOption(BaseModel):
+    slug: str
+    label: str
+    score: float
+    source: EmphasisSource
+
+
+class Phase1Decision(BaseModel):
+    """Cheap-to-compute output of Phase 1. Returned to the user for approval
+    before the expensive Phase 2 (photo analysis, final assembly, Hera render)
+    is triggered. Round-trips through the frontend untouched."""
+
+    icp: dict[str, Any] | None = None
+    location_enrichment: dict[str, Any] | None = None
+    reviews_evaluation: dict[str, Any] | None = None
+    visual_system: dict[str, Any] | None = None
+    suggested_language: Language = "en"
+    suggested_tone: Tone = "cozy"
+    emphasis_options: list[EmphasisOption] = Field(default_factory=list)
+    hook_options: list[HookOption] = Field(default_factory=list)
+    duration_seconds: int = 15
+    outpaint_enabled: bool = False
+
+
+class Overrides(BaseModel):
+    """User edits applied on top of the Phase 1 suggestions. Sent back to the
+    server with /api/generate to steer Phase 2."""
+
+    language: Language
+    tone: Tone
+    emphasis: list[str] = Field(default_factory=list)
+    deemphasis: list[str] = Field(default_factory=list)
+    hook_id: str = "auto"
+
+
 class ListingResponse(BaseModel):
     listing: ScrapedListing
-    decision: AgentDecision
+    phase1: Phase1Decision
 
 
 class GenerateRequest(BaseModel):
     listing_url: str
     listing: ScrapedListing
-    decision: AgentDecision
+    phase1: Phase1Decision
+    overrides: Overrides
 
 
 class GenerateResponse(BaseModel):
