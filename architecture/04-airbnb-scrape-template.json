@@ -1,0 +1,1054 @@
+{
+  "$schema": "internal://hera/airbnb-scrape-schema.v1",
+  "meta": {
+    "scraped_url": "https://www.airbnb.com/rooms/36276450?check_in=2027-01-29&check_out=2027-01-31",
+    "scraped_at": "2026-04-25",
+    "locale": "en_US",
+    "primary_source": "data-deferred-state-0 embedded JSON (StaysPdpSections GraphQL response)"
+  },
+  "groups": {
+    "core_identifiers": {
+      "listing_id": "36276450",
+      "graphql_node_id": "RGVtYW5kU3RheUxpc3Rpbmc6MzYyNzY0NTA=",
+      "url_canonical": "https://www.airbnb.com/rooms/36276450"
+    },
+    "title_and_property_type": {
+      "title": "A quiet little corner in the heart of Paris",
+      "is_auto_translated": false,
+      "property_type_localized": "Private room in condo",
+      "room_type_summary": "A quiet little corner in the heart of Paris · Paris",
+      "is_guest_favorite": false,
+      "is_new_listing": false,
+      "is_luxe": false,
+      "is_hotel": false
+    },
+    "capacity": {
+      "person_capacity": 1,
+      "overview_items": [
+        "1 single bed",
+        "Shared bathroom"
+      ],
+      "sleeping_arrangements": [
+        {
+          "room": "Bedroom",
+          "beds": "1 single bed",
+          "image_urls": [
+            "https://a0.muscache.com/im/pictures/84e3b195-7cf1-4a8f-989e-d74a0f4e260c.jpg"
+          ]
+        }
+      ]
+    },
+    "location": {
+      "lat": 48.85286,
+      "lng": 2.35036,
+      "map_marker_radius_in_meters": 152,
+      "map_marker_type": "APPROX",
+      "location_verified": true,
+      "city_locality": "Paris",
+      "address_subtitle": "Paris, Île-de-France, France",
+      "exact_street_address": null,
+      "neighborhood_highlights": "Charming little cafes, green areas, Quai de Seine for walks and picnics. Close to the great Parisian museums!",
+      "getting_around": "Metro, RER, bus nearby <br />Vélib station nearby<br />Nearby public transport fares"
+    },
+    "description": {
+      "description_intro": "Historic and picturesque district of central Paris. Museums and entertainment nearby. World restaurants and mini-markets.",
+      "description_the_space": "Bright and spacious old apartment. Large living room separating the guest's room from the private part inhabited by the host.",
+      "description_during_stay": "I am very easily reachable for any information or troubleshooting needed!",
+      "description_other_notes": "Discreet presence of a cat.",
+      "description_short": ""
+    },
+    "highlights": {
+      "highlights": [
+        {
+          "title": "Top 1% of homes",
+          "subtitle": "This home is one of the highest ranked based on ratings, reviews, and reliability.",
+          "icon": "SYSTEM_GOLDEN_TROPHY"
+        },
+        {
+          "title": "Great check-in experience",
+          "subtitle": "Recent guests loved the smooth start to this stay.",
+          "icon": "SYSTEM_KEY"
+        },
+        {
+          "title": "Room in a condo",
+          "subtitle": "Your own room in a home, plus access to shared spaces.",
+          "icon": "SYSTEM_PRIVATE_BEDROOM"
+        }
+      ]
+    },
+    "amenities": {
+      "amenities_count": 49,
+      "amenities_groups": [
+        {
+          "title": "Bathroom",
+          "amenities": [
+            {
+              "id": "pdp_v3_bathroom_61_36276450-0",
+              "title": "Bathtub",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bathroom_45_36276450-0",
+              "title": "Hair dryer",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bathroom_665_36276450-0",
+              "title": "Cleaning products",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bathroom_41_36276450-0",
+              "title": "Shampoo",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bathroom_79_36276450-0",
+              "title": "Body soap",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bathroom_77_36276450-0",
+              "title": "Hot water",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bathroom_611_36276450-0",
+              "title": "Shower gel",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "title": "Bedroom and laundry",
+          "amenities": [
+            {
+              "id": "pdp_v3_bedroom_laundry_33_36276450-0",
+              "title": "Free washer – In unit",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bedroom_laundry_34_36276450-0",
+              "title": "Free dryer – In unit",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bedroom_laundry_40_36276450-0",
+              "title": "Essentials",
+              "subtitle": "Towels, bed sheets, soap, and toilet paper",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bedroom_laundry_44_36276450-0",
+              "title": "Hangers",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bedroom_laundry_85_36276450-0",
+              "title": "Bed linens",
+              "subtitle": "Cotton linens",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bedroom_laundry_86_36276450-0",
+              "title": "Extra pillows and blankets",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bedroom_laundry_73_36276450-0",
+              "title": "Room-darkening shades",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bedroom_laundry_46_36276450-0",
+              "title": "Iron",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bedroom_laundry_667_36276450-0",
+              "title": "Drying rack for clothing",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_bedroom_laundry_671_36276450-0",
+              "title": "Clothing storage",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "title": "Entertainment",
+          "amenities": [
+            {
+              "id": "pdp_v3_entertainment_394_36276450-0",
+              "title": "Books and reading material",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "title": "Family",
+          "amenities": [
+            {
+              "id": "pdp_v3_family_66_36276450-0",
+              "title": "Children’s books and toys",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_family_69_36276450-0",
+              "title": "Fireplace guards",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "title": "Heating and cooling",
+          "amenities": [
+            {
+              "id": "pdp_v3_heating_cooling_27_36276450-0",
+              "title": "Indoor fireplace: wood-burning",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_heating_cooling_522_36276450-0",
+              "title": "Portable fans",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_heating_cooling_30_36276450-0",
+              "title": "Heating",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "title": "Home safety",
+          "amenities": [
+            {
+              "id": "pdp_v3_home_safety_35_36276450-0",
+              "title": "Smoke alarm",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "title": "Internet and office",
+          "amenities": [
+            {
+              "id": "pdp_v3_internet_office_4_36276450-0",
+              "title": "Wifi",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_internet_office_47_36276450-0",
+              "title": "Dedicated workspace",
+              "subtitle": "In a common space",
+              "available": true,
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "title": "Kitchen and dining",
+          "amenities": [
+            {
+              "id": "pdp_v3_kitchen_dining_8_36276450-0",
+              "title": "Kitchen",
+              "subtitle": "Space where guests can cook their own meals",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_91_36276450-0",
+              "title": "Refrigerator",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_89_36276450-0",
+              "title": "Microwave",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_94_36276450-0",
+              "title": "Cooking basics",
+              "subtitle": "Pots and pans, oil, salt and pepper",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_93_36276450-0",
+              "title": "Dishes and silverware",
+              "subtitle": "Bowls, chopsticks, plates, cups, etc.",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_308_36276450-0",
+              "title": "Freezer",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_92_36276450-0",
+              "title": "Dishwasher",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_96_36276450-0",
+              "title": "Faure gas stove",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_95_36276450-0",
+              "title": "Oven",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_137_36276450-0",
+              "title": "Hot water kettle",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_90_36276450-0",
+              "title": "Coffee maker",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_672_36276450-0",
+              "title": "Wine glasses",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_251_36276450-0",
+              "title": "Toaster",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_322_36276450-0",
+              "title": "Blender",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_236_36276450-0",
+              "title": "Dining table",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_kitchen_dining_415_36276450-0",
+              "title": "Coffee",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "title": "Services",
+          "amenities": [
+            {
+              "id": "pdp_v3_services_103_36276450-0",
+              "title": "Luggage dropoff allowed",
+              "subtitle": "For guests' convenience when they have early arrival or late departure",
+              "available": true,
+              "icon": ""
+            },
+            {
+              "id": "pdp_v3_services_129_36276450-0",
+              "title": "Host greets you",
+              "subtitle": "",
+              "available": true,
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "title": "Privacy and safety",
+          "amenities": [
+            {
+              "id": "lock_on_all_bedroom_doors_9998_36276450",
+              "title": "Lock on bedroom door",
+              "subtitle": "There is no lock on the bedroom door.",
+              "available": false,
+              "icon": ""
+            },
+            {
+              "id": "security_camera_9999_36276450",
+              "title": "Exterior security cameras on property",
+              "subtitle": "",
+              "available": false,
+              "icon": ""
+            },
+            {
+              "id": "pdp_unavailable_1_36276450-0",
+              "title": "TV",
+              "subtitle": "",
+              "available": false,
+              "icon": ""
+            },
+            {
+              "id": "pdp_unavailable_5_36276450-0",
+              "title": "Air conditioning",
+              "subtitle": "",
+              "available": false,
+              "icon": ""
+            },
+            {
+              "id": "pdp_unavailable_36_36276450-0",
+              "title": "Carbon monoxide alarm",
+              "subtitle": "There is no carbon monoxide detector on the property.",
+              "available": false,
+              "icon": ""
+            }
+          ]
+        }
+      ]
+    },
+    "media": {
+      "photos_count": 19,
+      "photos": [
+        {
+          "id": "896148135",
+          "base_url": "https://a0.muscache.com/im/pictures/78c5a6f4-51b7-45a2-b98b-9633b28acb8c.jpg",
+          "aspect_ratio": 0.75,
+          "orientation": "PORTRAIT",
+          "accessibility_label": "Shared living room image 1"
+        },
+        {
+          "id": "1722908008",
+          "base_url": "https://a0.muscache.com/im/pictures/8e023fdc-590a-44bd-a25f-e8b2dbfed1eb.jpg",
+          "aspect_ratio": 1.3333333333333333,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Shared living room image 2"
+        },
+        {
+          "id": "1708889661",
+          "base_url": "https://a0.muscache.com/im/pictures/b0560e5a-f21b-4bf5-bdef-0713a6702c5d.jpg",
+          "aspect_ratio": 1.3333333333333333,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Shared living room image 3"
+        },
+        {
+          "id": "1708889995",
+          "base_url": "https://a0.muscache.com/im/pictures/67817c16-1b4f-4887-9610-7b9053c25bd4.jpg",
+          "aspect_ratio": 1.3333333333333333,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Shared living room image 4"
+        },
+        {
+          "id": "1708889834",
+          "base_url": "https://a0.muscache.com/im/pictures/4f1770ff-5472-418e-988d-caa1a04b603f.jpg",
+          "aspect_ratio": 1.3333333333333333,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Shared living room image 5"
+        },
+        {
+          "id": "1708889917",
+          "base_url": "https://a0.muscache.com/im/pictures/e2453a43-f3c7-441f-9af0-5f3f03eb5d45.jpg",
+          "aspect_ratio": 1.3333333333333333,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Shared living room image 6"
+        },
+        {
+          "id": "1821110287",
+          "base_url": "https://a0.muscache.com/im/pictures/951e5a08-8e2d-4e2b-896f-5b3b97bd4669.jpg",
+          "aspect_ratio": 0.75,
+          "orientation": "PORTRAIT",
+          "accessibility_label": "Shared living room image 7"
+        },
+        {
+          "id": "2263050133",
+          "base_url": "https://a0.muscache.com/im/pictures/hosting/Hosting-36276450/original/5e3ebaea-dd98-45f6-9f8b-ac8c890b4ad6.jpeg",
+          "aspect_ratio": 1.3333333333333333,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Shared full kitchen image 1"
+        },
+        {
+          "id": "2263050139",
+          "base_url": "https://a0.muscache.com/im/pictures/hosting/Hosting-36276450/original/5ce8ca48-5d05-4863-a12e-ca504a6ff854.jpeg",
+          "aspect_ratio": 1.4083714386211748,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Shared full kitchen image 2"
+        },
+        {
+          "id": "1708890265",
+          "base_url": "https://a0.muscache.com/im/pictures/84e3b195-7cf1-4a8f-989e-d74a0f4e260c.jpg",
+          "aspect_ratio": 1.3333333333333333,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Bedroom image 1"
+        },
+        {
+          "id": "1708890021",
+          "base_url": "https://a0.muscache.com/im/pictures/10db823b-2094-4790-afd6-ee7cc7cf9764.jpg",
+          "aspect_ratio": 1.3333333333333333,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Shared full bathroom image 1"
+        },
+        {
+          "id": "798075321",
+          "base_url": "https://a0.muscache.com/im/pictures/bb73fee2-3853-43e3-afc3-d04e45194257.jpg",
+          "aspect_ratio": 0.75,
+          "orientation": "PORTRAIT",
+          "accessibility_label": "Shared exterior image 1"
+        },
+        {
+          "id": "1708898034",
+          "base_url": "https://a0.muscache.com/im/pictures/b9b99e61-2864-4812-9232-60f4c03f124b.jpg",
+          "aspect_ratio": 0.6681948424068768,
+          "orientation": "PORTRAIT",
+          "accessibility_label": "Shared exterior image 2"
+        },
+        {
+          "id": "1244943630",
+          "base_url": "https://a0.muscache.com/im/pictures/b97a9f7a-8718-4ae6-8395-8c2c17a847fd.jpg",
+          "aspect_ratio": 0.75,
+          "orientation": "PORTRAIT",
+          "accessibility_label": "Entrance door "
+        },
+        {
+          "id": "1245176479",
+          "base_url": "https://a0.muscache.com/im/pictures/61f2b1f0-81c2-496e-99a2-514a72cfb923.jpg",
+          "aspect_ratio": 1.3333333333333333,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Additional photos image 1"
+        },
+        {
+          "id": "1698185074",
+          "base_url": "https://a0.muscache.com/im/pictures/c9cbd4f5-a662-4686-a112-a06b7d5401a7.jpg",
+          "aspect_ratio": 0.7521968365553603,
+          "orientation": "PORTRAIT",
+          "accessibility_label": "Additional photos image 2"
+        },
+        {
+          "id": "887146391",
+          "base_url": "https://a0.muscache.com/im/pictures/434ff9d6-2246-4078-8d9a-ad3e0a1a0289.jpg",
+          "aspect_ratio": 0.75,
+          "orientation": "PORTRAIT",
+          "accessibility_label": "Additional photos image 3"
+        },
+        {
+          "id": "817844928",
+          "base_url": "https://a0.muscache.com/im/pictures/af2f65ee-802c-4b1f-bb46-35f11f537465.jpg",
+          "aspect_ratio": 1.3333333333333333,
+          "orientation": "LANDSCAPE",
+          "accessibility_label": "Additional photos image 4"
+        },
+        {
+          "id": "2442628845",
+          "base_url": "https://a0.muscache.com/im/pictures/hosting/Hosting-36276450/original/e6263a96-69c7-4628-9aa4-44c8a8b5decc.jpeg",
+          "aspect_ratio": 0.7596218771100608,
+          "orientation": "PORTRAIT",
+          "accessibility_label": "Additional photos image 5"
+        }
+      ],
+      "room_tour_layouts": [
+        {
+          "__typename": "RoomTourLayoutInfo",
+          "roomTourItems": [
+            {
+              "__typename": "RoomTourItem",
+              "title": "Shared living room",
+              "imageIds": [
+                "896148135",
+                "1722908008",
+                "1708889661",
+                "1708889995",
+                "1708889834",
+                "1708889917",
+                "1821110287"
+              ],
+              "mediaBlocks": [
+                {
+                  "__typename": "MediaBlockContainer",
+                  "flip": "DEFAULT",
+                  "format": "ONE_PORTRAIT_TWO_LANDSCAPES",
+                  "mediaBlock": {
+                    "__typename": "OnePortraitTwoLandscapesMediaBlock",
+                    "lowerLandscapeId": "1708889661",
+                    "portraitId": "896148135",
+                    "upperLandscapeId": "1722908008"
+                  }
+                },
+                {
+                  "__typename": "MediaBlockContainer",
+                  "flip": "DEFAULT",
+                  "format": "ONE_LANDSCAPE",
+                  "mediaBlock": {
+                    "__typename": "OneLandscapeMediaBlock",
+                    "landscapeId": "1708889995"
+                  }
+                },
+                {
+                  "__typename": "MediaBlockContainer",
+                  "flip": "HORIZONTAL_FLIP",
+                  "format": "ONE_PORTRAIT_TWO_LANDSCAPES",
+                  "mediaBlock": {
+                    "__typename": "OnePortraitTwoLandscapesMediaBlock",
+                    "lowerLandscapeId": "1708889917",
+                    "portraitId": "1821110287",
+                    "upperLandscapeId": "1708889834"
+                  }
+                }
+              ],
+              "highlights": [
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Indoor fireplace"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Heating"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Books and reading material"
+                }
+              ]
+            },
+            {
+              "__typename": "RoomTourItem",
+              "title": "Shared full kitchen",
+              "imageIds": [
+                "2263050133",
+                "2263050139"
+              ],
+              "mediaBlocks": [
+                {
+                  "__typename": "MediaBlockContainer",
+                  "flip": "DEFAULT",
+                  "format": "TWO_LANDSCAPES",
+                  "mediaBlock": {
+                    "__typename": "TwoLandscapesMediaBlock",
+                    "leftLandscapeId": "2263050133",
+                    "rightLandscapeId": "2263050139"
+                  }
+                }
+              ],
+              "highlights": [
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Blender"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Hot water kettle"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Coffee"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Coffee maker"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Freezer"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Stove"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Cooking basics"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Oven"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Microwave"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Toaster"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Dishwasher"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Refrigerator"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Dishes and silverware"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Wine glasses"
+                }
+              ]
+            },
+            {
+              "__typename": "RoomTourItem",
+              "title": "Bedroom",
+              "imageIds": [
+                "1708890265"
+              ],
+              "mediaBlocks": [
+                {
+                  "__typename": "MediaBlockContainer",
+                  "flip": "DEFAULT",
+                  "format": "ONE_LANDSCAPE",
+                  "mediaBlock": {
+                    "__typename": "OneLandscapeMediaBlock",
+                    "landscapeId": "1708890265"
+                  }
+                }
+              ],
+              "highlights": [
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Single bed"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Heating"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Indoor fireplace"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Hangers"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Bed linens"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Clothing storage"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Iron"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Extra pillows and blankets"
+                },
+                {
+                  "__typename": "BasicListItem",
+                  "title": "Room-darkening shades"
+                }
+              ]
+            },
+            {
+              "__typename": "RoomTourItem",
+              "title": "Shared full bathroom",
+              "imageIds": [
+                "1708890021"
+              ],
+              "mediaBlocks": [
+                {
+                  "__typename": "MediaBlockContainer",
+                  "flip": "DEFAULT",
+                  "format": "ONE_LANDSCAPE",
+                  "mediaBlock": {
+                    "__typename": "OneLandscapeMediaBlock",
+                    "landscapeId": "1708890021"
+                  }
+                }
+              ],
+              "highlights": []
+            },
+            {
+              "__typename": "RoomTourItem",
+              "title": "Shared exterior",
+              "imageIds": [
+                "798075321",
+                "1708898034",
+                "1244943630"
+              ],
+              "mediaBlocks": [
+                {
+                  "__typename": "MediaBlockContainer",
+                  "flip": "DEFAULT",
+                  "format": "THREE_PORTRAITS_TALL",
+                  "mediaBlock": {
+                    "__typename": "ThreePortraitsTallMediaBlock",
+                    "leftPortraitId": "798075321",
+                    "lowerRightPortraitId": "1244943630",
+                    "upperRightPortraitId": "1708898034"
+                  }
+                }
+              ],
+              "highlights": []
+            },
+            {
+              "__typename": "RoomTourItem",
+              "title": "Additional photos",
+              "imageIds": [
+                "1245176479",
+                "1698185074",
+                "887146391",
+                "817844928",
+                "2442628845"
+              ],
+              "mediaBlocks": [
+                {
+                  "__typename": "MediaBlockContainer",
+                  "flip": "DEFAULT",
+                  "format": "ONE_LANDSCAPE",
+                  "mediaBlock": {
+                    "__typename": "OneLandscapeMediaBlock",
+                    "landscapeId": "1245176479"
+                  }
+                },
+                {
+                  "__typename": "MediaBlockContainer",
+                  "flip": "DEFAULT",
+                  "format": "TWO_PORTRAITS",
+                  "mediaBlock": {
+                    "__typename": "TwoPortraitsMediaBlock",
+                    "leftPortraitId": "1698185074",
+                    "rightPortraitId": "887146391"
+                  }
+                },
+                {
+                  "__typename": "MediaBlockContainer",
+                  "flip": "HORIZONTAL_FLIP",
+                  "format": "ONE_PORTRAIT_ONE_LANDSCAPE",
+                  "mediaBlock": {
+                    "__typename": "OnePortraitOneLandscapeMediaBlock",
+                    "landscapeId": "817844928",
+                    "portraitId": "2442628845"
+                  }
+                }
+              ],
+              "highlights": []
+            }
+          ]
+        }
+      ],
+      "og_image_url": "https://a0.muscache.com/im/pictures/8e023fdc-590a-44bd-a25f-e8b2dbfed1eb.jpg?im_w=720&amp;width=720&amp;quality=70&amp;auto=webp",
+      "json_ld_images": [
+        "https://a0.muscache.com/im/pictures/8e023fdc-590a-44bd-a25f-e8b2dbfed1eb.jpg",
+        "https://a0.muscache.com/im/pictures/78c5a6f4-51b7-45a2-b98b-9633b28acb8c.jpg",
+        "https://a0.muscache.com/im/pictures/b0560e5a-f21b-4bf5-bdef-0713a6702c5d.jpg",
+        "https://a0.muscache.com/im/pictures/67817c16-1b4f-4887-9610-7b9053c25bd4.jpg",
+        "https://a0.muscache.com/im/pictures/4f1770ff-5472-418e-988d-caa1a04b603f.jpg",
+        "https://a0.muscache.com/im/pictures/c9cbd4f5-a662-4686-a112-a06b7d5401a7.jpg",
+        "https://a0.muscache.com/im/pictures/e2453a43-f3c7-441f-9af0-5f3f03eb5d45.jpg",
+        "https://a0.muscache.com/im/pictures/84e3b195-7cf1-4a8f-989e-d74a0f4e260c.jpg"
+      ]
+    },
+    "ratings_and_reviews": {
+      "listing_has_own_reviews": false,
+      "listing_reviews_note": "New listing — no reviews yet for this specific room. Host has 617 reviews across other listings.",
+      "host_aggregate_rating": 4.94,
+      "host_aggregate_review_count": 617,
+      "rating_distribution": [],
+      "category_ratings": [],
+      "review_tags_ai": [],
+      "reviews_inline_sample": []
+    },
+    "host": {
+      "host_first_name": "Carole",
+      "host_user_id": "RGVtYW5kVXNlcjoyNzI4MzQ1ODM=",
+      "host_profile_picture_url": "https://a0.muscache.com/im/pictures/user/User-272834583/original/c0c9bbeb-65d5-48c2-9c07-5e50cebb7111.jpeg",
+      "host_is_superhost": false,
+      "host_is_verified": true,
+      "host_time_as_host": {
+        "__typename": "TimeAsUser",
+        "years": 6,
+        "months": 9
+      },
+      "host_years_hosting": "7",
+      "host_review_count": 617,
+      "host_rating_average": 4.94,
+      "host_about": "",
+      "host_highlights": [
+        "Where I went to school: Ecole du Louvre, Paris",
+        "My work: Presse",
+        "Speaks English and Italian",
+        "Lives in Paris, France",
+        "I’m happy to spend time with my guests or give them space"
+      ],
+      "host_response_rate": "Response rate: 100%",
+      "host_response_time": "Responds within an hour",
+      "host_cohosts": [],
+      "host_is_business": false
+    },
+    "policies_and_rules": {
+      "check_in_window": "Check-in after 3:00 PM",
+      "check_out_time": "Checkout before 11:00 AM",
+      "self_check_in_method": "Self check-in with lockbox",
+      "max_guests": 1,
+      "pets_allowed": false,
+      "parties_allowed": false,
+      "smoking_allowed": false,
+      "additional_rules": "No loud noise after 10pm",
+      "safety_features": [
+        {
+          "title": "No carbon monoxide alarm",
+          "icon": ""
+        },
+        {
+          "title": "Smoke alarm",
+          "icon": ""
+        }
+      ],
+      "property_facts": [
+        {
+          "title": "Some spaces are shared",
+          "icon": ""
+        }
+      ],
+      "cancellation_policy_summary": "Flexible cancellation policy"
+    },
+    "pricing_and_availability": {
+      "price_total_label": null,
+      "price_breakdown_note": "Dates in 2027 — structured price not returned in initial HTML; requires separate availability API call or date selection in browser",
+      "currency": "USD",
+      "can_instant_book": null,
+      "rare_find_badge": false,
+      "selected_check_in": "2027-01-29",
+      "selected_check_out": "2027-01-31",
+      "nights": 2,
+      "min_nights": null,
+      "max_nights": null,
+      "discount_messages": []
+    },
+    "trust_and_quality_signals": {
+      "guest_favorite_position_label": "Top 1% of homes",
+      "ugc_translation_active": false,
+      "reported_status_for_viewer": "NOT_REPORTED",
+      "report_to_airbnb_url": ""
+    },
+    "seo_and_meta": {
+      "og_title": "Condo in Paris · 1 bedroom · 1 bed · 1 shared bath",
+      "og_description": "A quiet little corner in the heart of Paris",
+      "og_image_url": "https://a0.muscache.com/im/pictures/8e023fdc-590a-44bd-a25f-e8b2dbfed1eb.jpg?im_w=720&amp;width=720&amp;quality=70&amp;auto=webp",
+      "page_title": "A quiet little corner in the heart of Paris - Condominiums for Rent in Paris, Île-de-France, France - Airbnb",
+      "seo_breadcrumbs": [],
+      "json_ld_vacation_rental": {
+        "@context": "https://schema.org",
+        "@type": "VacationRental",
+        "identifier": "RGVtYW5kU3RheUxpc3Rpbmc6MzYyNzY0NTA=",
+        "name": "A quiet little corner in the heart of Paris",
+        "description": "Historic and picturesque district of central Paris. Museums and entertainment nearby. World restaurants and mini-markets.",
+        "image": [
+          "https://a0.muscache.com/im/pictures/8e023fdc-590a-44bd-a25f-e8b2dbfed1eb.jpg",
+          "https://a0.muscache.com/im/pictures/78c5a6f4-51b7-45a2-b98b-9633b28acb8c.jpg",
+          "https://a0.muscache.com/im/pictures/b0560e5a-f21b-4bf5-bdef-0713a6702c5d.jpg",
+          "https://a0.muscache.com/im/pictures/67817c16-1b4f-4887-9610-7b9053c25bd4.jpg",
+          "https://a0.muscache.com/im/pictures/4f1770ff-5472-418e-988d-caa1a04b603f.jpg",
+          "https://a0.muscache.com/im/pictures/c9cbd4f5-a662-4686-a112-a06b7d5401a7.jpg",
+          "https://a0.muscache.com/im/pictures/e2453a43-f3c7-441f-9af0-5f3f03eb5d45.jpg",
+          "https://a0.muscache.com/im/pictures/84e3b195-7cf1-4a8f-989e-d74a0f4e260c.jpg"
+        ],
+        "containsPlace": {
+          "@type": "Accommodation",
+          "occupancy": {
+            "@type": "QuantitativeValue",
+            "value": 1
+          }
+        },
+        "latitude": 48.85286,
+        "longitude": 2.35036,
+        "address": {
+          "addressLocality": "Paris"
+        }
+      }
+    }
+  },
+  "what_we_could_not_get": [
+    {
+      "field": "exact_street_address",
+      "reason": "Disclosed only after booking."
+    },
+    {
+      "field": "price_breakdown_for_2027_dates",
+      "reason": "structuredDisplayPrice null in initial HTML for far-future dates; needs browser-rendered calendar interaction."
+    },
+    {
+      "field": "cancellation_policy_detail",
+      "reason": "cancellationPolicyForDisplay null — no dates produced a policy string in this response."
+    },
+    {
+      "field": "full_reviews_corpus",
+      "reason": "This listing has no reviews yet (new listing). Host has 617 reviews on other listings."
+    },
+    {
+      "field": "availability_calendar_days",
+      "reason": "Calendar month data not embedded in this response; requires StaysPdpAvailabilityCalendar paginated query."
+    }
+  ]
+}
