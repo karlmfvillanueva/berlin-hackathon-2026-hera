@@ -1,152 +1,188 @@
-import type { AgentDecision } from "../types";
+// src/components/RationaleRail.tsx
+import { ChipGroup } from "@/components/ChipGroup"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import type { AgentDecision } from "../types"
 
 interface RationaleRailProps {
-  decision: AgentDecision;
+  decision: AgentDecision
 }
 
-const SECTIONS: { label: string; key: keyof AgentDecision }[] = [
-  { label: "HOOK", key: "hook" },
-  { label: "PACING", key: "pacing" },
-  { label: "ANGLE", key: "angle" },
-  { label: "BACKGROUND", key: "background" },
-];
+const SECTIONS: { label: string; key: "hook" | "pacing" | "angle" | "background" }[] = [
+  { label: "Hook", key: "hook" },
+  { label: "Pacing", key: "pacing" },
+  { label: "Angle", key: "angle" },
+  { label: "Background", key: "background" },
+]
+
+function parseVibes(vibes: string): string[] {
+  return vibes
+    .split("·")
+    .map((v) => v.trim())
+    .filter(Boolean)
+}
 
 export function RationaleRail({ decision }: RationaleRailProps) {
+  const tags = parseVibes(decision.vibes)
+  const hasAgentInsights =
+    decision.icp ||
+    decision.visual_system ||
+    decision.reviews_evaluation ||
+    decision.photo_analysis
+  const hasJudge = typeof decision.judge_score === "number"
+
   return (
-    <div className="w-[360px] shrink-0 bg-[#FAFAFA] border border-black p-6 flex flex-col gap-5">
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[16px] font-bold text-black">
-          What the agent decided
-        </span>
-        <span className="text-[12px] font-normal text-[#666666]">
-          Editorial calls for this 15s cut.
-        </span>
-      </div>
-
-      <div className="h-px bg-black" />
-
-      <div className="flex flex-col gap-[18px]">
-        {SECTIONS.map(({ label, key }) => (
-          <div key={key} className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-[1.5px]">
-              {label}
-            </span>
-            <span className="text-[13px] font-normal text-black leading-[1.4]">
-              {String(decision[key])}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {decision.beliefs_applied && decision.beliefs_applied.length > 0 && (
-        <>
-          <div className="h-px bg-black" />
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-[1.5px]">
-              BELIEFS APPLIED
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {decision.beliefs_applied.map((belief) => (
-                <span
-                  key={belief}
-                  className="text-[12px] font-normal text-black border border-[#E5E5E5] px-2 py-0.5"
-                >
-                  {belief.replace(/_/g, " ")}
-                </span>
-              ))}
-            </div>
-          </div>
-        </>
+    <aside className="flex w-full max-w-sm shrink-0 flex-col gap-4">
+      {tags.length > 0 && (
+        <Card className="p-5">
+          <p className="text-label text-secondary mb-3">Vibes</p>
+          <ChipGroup tags={tags} />
+        </Card>
       )}
 
-      {(decision.icp ||
-        decision.visual_system ||
-        decision.reviews_evaluation ||
-        decision.photo_analysis) && (
-        <>
-          <div className="h-px bg-black" />
+      {SECTIONS.map(({ label, key }) => (
+        <Card key={key} className="p-5">
+          <p className="text-label text-secondary mb-3">{label}</p>
+          <p className="text-rationale">{String(decision[key])}</p>
+        </Card>
+      ))}
+
+      {decision.beliefs_applied && decision.beliefs_applied.length > 0 && (
+        <Card className="p-5">
+          <p className="text-label text-secondary mb-3">Beliefs Applied</p>
+          <div className="flex flex-wrap gap-1.5">
+            {decision.beliefs_applied.map((belief) => (
+              <Badge key={belief} variant="secondary">
+                {belief.replace(/_/g, " ")}
+              </Badge>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {hasJudge && (
+        <Card className="p-5">
           <details>
-            <summary className="text-[13px] font-bold text-black cursor-pointer list-none">
-              Agent insights →
+            <summary className="text-label text-secondary cursor-pointer list-none">
+              Editorial Judge ·{" "}
+              <span className="font-semibold text-foreground">
+                {decision.judge_score?.toFixed(1)}/10
+              </span>
             </summary>
-            <div className="mt-3 flex flex-col gap-3">
+            <Separator className="my-3" />
+            {decision.judge_rationale && (
+              <p className="text-body-sm text-muted-foreground leading-relaxed">
+                {decision.judge_rationale}
+              </p>
+            )}
+            {decision.judge_scores_per_brief &&
+              decision.judge_scores_per_brief.length > 0 && (
+                <div className="mt-3 flex flex-col gap-2">
+                  {decision.judge_scores_per_brief.map((s) => (
+                    <div
+                      key={s.index}
+                      className="text-body-sm text-muted-foreground"
+                    >
+                      <span className="font-medium text-foreground">
+                        Brief {s.index}
+                      </span>
+                      {typeof s.aggregate === "number" && (
+                        <> · agg {s.aggregate.toFixed(1)}</>
+                      )}
+                      {s.weakness && (
+                        <span className="block italic">{s.weakness}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+          </details>
+        </Card>
+      )}
+
+      {hasAgentInsights && (
+        <Card className="p-5">
+          <details>
+            <summary className="text-label text-secondary cursor-pointer list-none">
+              Agent Insights
+            </summary>
+            <Separator className="my-3" />
+            <div className="flex flex-col gap-4">
               {decision.icp?.best_icp?.persona && (
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-[1.5px]">
-                    ICP
-                  </span>
-                  <span className="text-[12px] font-bold text-black">
-                    {decision.icp.best_icp.persona}
+                  <p className="text-label text-secondary">ICP</p>
+                  <p className="text-rationale">
+                    <span className="font-semibold">
+                      {decision.icp.best_icp.persona}
+                    </span>
                     {typeof decision.icp.best_icp.fit_score === "number" && (
-                      <span className="text-[#666] font-normal">
+                      <span className="text-muted-foreground">
                         {" · fit "}
                         {decision.icp.best_icp.fit_score.toFixed(2)}
                       </span>
                     )}
-                  </span>
+                  </p>
                   {decision.icp.best_icp.booking_trigger && (
-                    <span className="text-[12px] text-[#444] leading-[1.4]">
+                    <p className="text-body-sm text-muted-foreground">
                       Trigger: {decision.icp.best_icp.booking_trigger}
-                    </span>
+                    </p>
                   )}
                 </div>
               )}
               {decision.visual_system?.inferred_setting && (
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-[1.5px]">
-                    VISUAL SYSTEM
-                  </span>
-                  <span className="text-[12px] text-black">
+                  <p className="text-label text-secondary">Visual System</p>
+                  <p className="text-rationale">
                     Setting:{" "}
-                    <span className="font-bold">
+                    <span className="font-semibold">
                       {decision.visual_system.inferred_setting}
                     </span>
-                  </span>
+                  </p>
                   {decision.visual_system.music && (
-                    <span className="text-[11px] text-[#444] leading-[1.4]">
+                    <p className="text-body-sm text-muted-foreground">
                       Music: {decision.visual_system.music}
-                    </span>
+                    </p>
                   )}
                   {decision.visual_system.transitions && (
-                    <span className="text-[11px] text-[#444] leading-[1.4]">
+                    <p className="text-body-sm text-muted-foreground">
                       Transitions: {decision.visual_system.transitions}
-                    </span>
+                    </p>
                   )}
                 </div>
               )}
               {decision.reviews_evaluation?.best_video_quotes?.[0]?.quote && (
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-[1.5px]">
-                    REVIEW PROOF
-                  </span>
-                  <span className="text-[12px] italic text-black leading-[1.4]">
-                    "{decision.reviews_evaluation.best_video_quotes[0].quote}"
-                  </span>
+                  <p className="text-label text-secondary">Review Proof</p>
+                  <p className="text-rationale italic">
+                    “{decision.reviews_evaluation.best_video_quotes[0].quote}”
+                  </p>
                 </div>
               )}
               {decision.photo_analysis?.analysis_summary?.one_line_strategy && (
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-[1.5px]">
-                    PHOTO STRATEGY
-                  </span>
-                  <span className="text-[12px] text-black leading-[1.4]">
+                  <p className="text-label text-secondary">Photo Strategy</p>
+                  <p className="text-rationale">
                     {decision.photo_analysis.analysis_summary.one_line_strategy}
-                  </span>
+                  </p>
                 </div>
               )}
             </div>
           </details>
-        </>
+        </Card>
       )}
 
-      <details className="mt-auto">
-        <summary className="text-[13px] font-bold text-black cursor-pointer list-none">
-          View full rationale →
-        </summary>
-        <pre className="mt-3 text-[11px] text-[#555555] whitespace-pre-wrap break-words leading-[1.5]">
-          {decision.hera_prompt}
-        </pre>
-      </details>
-    </div>
-  );
+      <Card className="p-5">
+        <details>
+          <summary className="text-label text-secondary cursor-pointer list-none">
+            Full Rationale
+          </summary>
+          <Separator className="my-3" />
+          <pre className="text-body-sm whitespace-pre-wrap break-words text-muted-foreground">
+            {decision.hera_prompt}
+          </pre>
+        </details>
+      </Card>
+    </aside>
+  )
 }
