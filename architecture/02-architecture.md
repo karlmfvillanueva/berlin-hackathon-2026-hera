@@ -1,525 +1,552 @@
-# System Architecture — StayMotion
+# System Architecture — Airbnb Listing Video Agent
 
-## Architecture overview
+## Overview
 
-StayMotion is a pipeline-oriented system with six layers: Frontend → API Orchestrator → Data Extraction → Image Processing → Creative Agent → Video Rendering. A seventh layer (Performance Learning) operates asynchronously and feeds back into the Creative Agent.
+The system is a thin, opinionated pipeline: **Frontend → FastAPI orchestrator → Agent → Hera → poll for video**.
 
-All inter-service communication is synchronous within a single API request lifecycle, except for Hera video rendering (async polling) and performance analytics (background cron).
+Phase 1 (shipped MVP) runs entirely synchronous, in-process, stateless. Phase 2 layers in optional outpainting and a persistence + learning loop. Phase 3 is multi-platform and social posting.
+
+This document is the single source of truth for what exists, what's planned, and where the seams are.
+
+---
+
+## Stack at a glance
+
+| | Phase 1 (built) | Phase 2 (planned) | Phase 3 (later) |
+|---|---|---|---|
+| Frontend | Vite + React + TS | + outpaint toggle wired, regenerate, download | + dashboard, auth, OAuth flows |
+| Backend | FastAPI on `:8000` | + Nanobanana client, Supabase client, performance cron | + multi-platform parsers, social-post adapters |
+| Persistence | None (stateless) | Supabase Postgres | (unchanged) |
+| Listing source | Pre-captured JSON fixtures | Live Playwright scrape | Airbnb + Booking + VRBO |
+| Image processing | Pass through CDN URLs | Optional Nanobanana outpaint to 9:16 (toggle) | (unchanged) |
+| Agent | Claude Sonnet via Anthropic SDK | + beliefs from DB | (unchanged) |
+| Video render | Hera REST | (unchanged) | (unchanged) |
+| Status updates | HTTP polling 5s | (unchanged) | Optional SSE upgrade |
+
+The Hera key never reaches the browser. Frontend talks only to FastAPI.
+
+---
+
+## Repo layout
+
+```
+backend/
+  src/
+    main.py                  # FastAPI app, routes, Hera proxy
+    logger.py
+    agent/
+      __init__.py
+      models.py              # Pydantic: Photo, ScrapedListing, AgentDecision, ...
+      angles.py              # 6-angle taxonomy + prompt templates
+      classifier.py          # Anthropic SDK call → angle + rationale
+      image_scorer.py        # Deterministic scoring → top 5 reference URLs
+      prompt_builder.py      # Fill template, return Hera prompt string
+      orchestrator.py        # run(listing) → AgentDecision
+      fixture_loader.py      # Phase 1: load from fixtures/
+      fixtures/              # Hand-captured listing JSON
+      # Phase 2 additions:
+      # scraper.py           # Live Playwright scraper, replaces fixture loader as primary
+      # outpainter.py        # Nanobanana client (toggle-gated)
+      # beliefs.py           # SELECT top 10 beliefs by confidence DESC
+      # performance/         # cron + analytics polling, kept off the request path
+frontend/
+  src/
+    App.tsx
+    components/
+    api/client.ts
+    types.ts
+```
+
+Phase 2 modules live alongside the existing ones, not in a parallel tree. Replace the fixture loader call in `orchestrator.run()` with a scraper call when Phase 2 lands. The agent itself does not change.
+
+---
+
+## API surface
+
+The MVP exposes three application endpoints plus a Hera passthrough. Phase 2 and 3 add to this list rather than replace it.
+
+### `POST /api/listing` — load and classify (Phase 1)
+
+Returns instantly (Anthropic call is the only blocking work, ~1–3s). The frontend uses this to paint the reasoning card before any rendering starts.
+
+**Request:**
+```json
+{ "listing_url": "https://www.airbnb.com/rooms/12345678" }
+```
+
+**Response 200:**
+```json
+{
+  "listing": { "...ScrapedListing..." },
+  "decision": {
+    "angle_id": "remote_work",
+    "angle_label": "Remote Work Base",
+    "confidence": 0.84,
+    "rationale": "The title mentions a dedicated workspace…",
+    "hera_prompt": "Create a 15-second vertical motion graphics video…",
+    "selected_image_urls": ["https://…", "…"]
+  }
+}
+```
+
+**Errors:**
+- `404 fixture_not_found` (Phase 1) — listing URL has no fixture. Replaced in Phase 2 by `scrape_blocked` / `scrape_failed`.
+- `500 classifier_failed` — Anthropic call returned non-JSON or the schema didn't validate.
+
+### `POST /api/generate` — submit to Hera (Phase 1)
+
+Takes the decision the frontend already has and submits to Hera.
+
+**Request:**
+```json
+{ "decision": { "...AgentDecision..." } }
+```
+
+**Response 200:**
+```json
+{
+  "video_id": "hera-abc123",
+  "decision": { "...AgentDecision..." }
+}
+```
+
+**Errors:**
+- `502 hera_unreachable` — Hera API is down or timed out.
+- `500 hera_submission_failed` — Hera returned 4xx/5xx.
+
+### `GET /api/videos/{video_id}` — status passthrough (Phase 1)
+
+Frontend polls every 5s. Backend proxies to `GET https://api.hera.video/v1/videos/{video_id}` and reshapes minimally.
+
+**Response 200:**
+```json
+{
+  "video_id": "hera-abc123",
+  "project_url": "https://app.hera.video/motions/...",
+  "status": "in-progress" | "success" | "failed",
+  "outputs": [
+    {
+      "status": "success",
+      "file_url": "https://hera-cdn.com/exports/video.mp4",
+      "config": { "format": "mp4", "aspect_ratio": "9:16", "fps": "30", "resolution": "1080p" }
+    }
+  ]
+}
+```
+
+No caching in Phase 1 — each poll hits Hera directly.
+
+### `POST /api/videos` — direct passthrough (Phase 1)
+
+Thin proxy to `POST https://api.hera.video/v1/videos` for raw access during demos and probes. Not used by the production frontend flow. Kept because it's already wired and cheap to maintain.
+
+### `GET /api/health`
+
+Smoke test: `{ ok: true, hera_key_loaded: bool }`. Never reveals the key.
+
+### Phase 2 additions
+
+- `POST /api/regenerate` — accept `{ video_id }` or `{ decision, seed }`, kick off a new Hera job, return new `video_id`.
+- `GET /api/videos` (authed, Phase 3) — list user's prior videos. Reads from `videos` table.
+
+---
+
+## Phase 1 pipeline (shipped)
+
+Synchronous, single request. No queue, no background jobs.
+
+```
+client                       FastAPI                          Hera
+  │                             │                                │
+  │ POST /api/listing           │                                │
+  │ { listing_url }             │                                │
+  ├────────────────────────────▶│                                │
+  │                             │ load_fixture(url)              │
+  │                             │ ScrapedListing                 │
+  │                             │                                │
+  │                             │ orchestrator.run(listing)      │
+  │                             │   ├─ classifier (Claude)       │
+  │                             │   ├─ image_scorer              │
+  │                             │   └─ prompt_builder            │
+  │                             │ AgentDecision                  │
+  │ 200 { listing, decision }   │                                │
+  │◀────────────────────────────┤                                │
+  │                             │                                │
+  │ POST /api/generate          │                                │
+  │ { decision }                │                                │
+  ├────────────────────────────▶│                                │
+  │                             │ POST /videos                   │
+  │                             ├───────────────────────────────▶│
+  │                             │ { video_id, project_url }      │
+  │                             │◀───────────────────────────────┤
+  │ 200 { video_id, decision }  │                                │
+  │◀────────────────────────────┤                                │
+  │                             │                                │
+  │ GET /api/videos/{id}  (×N)  │                                │
+  ├────────────────────────────▶│                                │
+  │                             │ GET /videos/{id}               │
+  │                             ├───────────────────────────────▶│
+  │                             │◀───────────────────────────────┤
+  │ 200 { status, outputs }     │                                │
+  │◀────────────────────────────┤                                │
+```
+
+Total endpoints called per video: 3 backend, 2 Hera (1 create + N polls). No DB, no queue, no cron.
+
+---
+
+## Phase 2 pipeline (planned)
+
+Same request shape, more layers behind `/api/listing`:
+
+```
+POST /api/listing { listing_url, outpaint_enabled }
+  │
+  ▼
+[scraper.py]                                    # Phase 2 replaces fixture_loader
+  Playwright headless → ScrapedListing
+  │
+  ▼
+[image_scorer.py] → top 5 photo URLs
+  │
+  ▼
+if outpaint_enabled:                            # Phase 2 toggle
+  [outpainter.py] → 5× Nanobanana calls in parallel
+  yields 5× 9:16 portrait URLs hosted on Nanobanana CDN
+else:
+  pass through original URLs
+  │
+  ▼
+[classifier.py] → AgentDecision (with beliefs from DB)
+  │
+  ▼
+return ListingResponse
+```
+
+`POST /api/generate` is unchanged. The video record gets persisted to Supabase here (see Layer 7).
 
 ---
 
 ## Layer 1: Frontend
 
-**Stack:** Next.js 14+ (App Router), React, Tailwind CSS, deployed on Vercel.
+Already specified in `01-ui-flow.md`. Repeating the parts that bind to this layer:
 
-**Responsibilities:**
-- URL input and validation
-- Real-time progress display via Server-Sent Events (SSE) or WebSocket from the orchestrator
-- Video preview player (HTML5 `<video>` tag, MP4 source)
-- Download handling
-- OAuth flows for social media connections (stretch goal)
+- Vite + React + TS, dev `:5173`.
+- Reads `VITE_BACKEND_URL` from env. Never reads any Hera or Anthropic key.
+- Single screen, state machine. No router.
+- HTTP polling for status. SSE is a Phase 3 optional upgrade — not started.
 
-**Key routes:**
-| Route | Component | Data source |
-|---|---|---|
-| `/` | `LandingPage` | Static |
-| `/generate/[jobId]` | `GenerateProgress` | SSE stream from `/api/generate/[jobId]/stream` |
-| `/video/[videoId]` | `VideoPreview` | GET `/api/video/[videoId]` |
-| `/dashboard` | `Dashboard` | GET `/api/videos` |
-
-**Frontend talks to:** Only the API orchestrator (Layer 2). Never directly to Hera, Nanobanana, or external services.
+**Why not Next.js / SSR / SSE:** the MVP works on Vite + polling. SSR adds zero value when the only stateful page is a single client-side state machine. SSE adds real complexity (long-lived connections, reconnect logic, server-side fan-out) for a UX gain that's marginal over a 5-second poll. Defer until there's a reason.
 
 ---
 
-## Layer 2: API orchestrator
+## Layer 2: API orchestrator (FastAPI)
 
-**Stack:** Next.js API routes (for hackathon simplicity — same deployment as frontend) OR FastAPI (if the team prefers Python for scraping/agent logic).
+- FastAPI app in `backend/src/main.py`.
+- Single `httpx.AsyncClient` configured with the Hera base URL and `x-api-key` header, lifecycle-managed via FastAPI's `lifespan`.
+- All request/response bodies are Pydantic models. No untyped dicts crossing the boundary.
+- Pipeline runs in-process; no Celery, no Redis, no queue.
 
-**Recommended for hackathon:** Next.js API routes with a background job processor. Use Vercel's serverless functions with a maximum execution time of 60s per function. Chain multiple function invocations for the full pipeline.
+**Why not Next.js API routes / Vercel serverless:**
+- Playwright + Chromium is too large for Vercel's 50 MB function size limit. We will need Playwright in Phase 2 — designing around that constraint now would mean Browserless or a sidecar.
+- FastAPI keeps the agent logic in Python, which the team already writes daily. Splitting Python (agent) and JS (orchestrator) doubles the deployment surface.
+- The MVP runs on FastAPI today. There is no good reason to switch.
 
-**Alternative for production:** FastAPI + Celery/Redis for job queue.
-
-**Core endpoint:**
-
-```
-POST /api/generate
-Body: { "url": "https://airbnb.com/rooms/12345" }
-Response: { "jobId": "job_abc123" }
-```
-
-This endpoint kicks off the pipeline:
-1. Validate URL
-2. Create job record in database (status: `scraping`)
-3. Start pipeline execution (see Pipeline Orchestration below)
-4. Return jobId immediately
-
-**Status streaming endpoint:**
-
-```
-GET /api/generate/[jobId]/stream
-Response: Server-Sent Events stream
-  data: { "step": "scraping", "message": "Analyzing your listing..." }
-  data: { "step": "scraping_done", "stats": { "photos": 12, "rating": 4.8 } }
-  data: { "step": "outpainting", "message": "Optimizing photos for mobile..." }
-  data: { "step": "agent", "message": "Crafting your story...", "category": "beach" }
-  data: { "step": "rendering", "message": "Rendering video..." }
-  data: { "step": "done", "videoId": "vid_xyz789", "videoUrl": "https://..." }
-```
-
-**Pipeline orchestration pseudocode:**
-
-```
-async function runPipeline(jobId, listingUrl) {
-  // Step 1: Scrape
-  emit(jobId, "scraping")
-  const listingData = await scrapeListing(listingUrl)
-  emit(jobId, "scraping_done", { stats: listingData.stats })
-
-  // Step 2: Rank photos and outpaint
-  emit(jobId, "outpainting")
-  const rankedPhotos = await rankPhotos(listingData.photos)  // LLM vision call
-  const portraitPhotos = await Promise.all(
-    rankedPhotos.slice(0, 5).map(photo => outpaintToPortrait(photo))
-  )
-
-  // Step 3: Upload assets to Hera
-  emit(jobId, "uploading")
-  const heraUrls = await Promise.all(
-    portraitPhotos.map(photo => heraUploadFile(photo.url))
-  )
-
-  // Step 4: Run creative agent
-  emit(jobId, "agent")
-  const beliefs = await getTopBeliefs(10)  // from performance DB
-  const heraPayload = await runCreativeAgent(listingData, heraUrls, beliefs)
-  emit(jobId, "agent_done", { category: heraPayload.metadata.category })
-
-  // Step 5: Render via Hera
-  emit(jobId, "rendering")
-  const { video_id } = await heraCreateVideo(heraPayload)
-
-  // Step 6: Poll until done
-  let status = "in-progress"
-  while (status === "in-progress") {
-    await sleep(3000)
-    const result = await heraGetVideo(video_id)
-    status = result.status
-    if (status === "success") {
-      emit(jobId, "done", { videoId: video_id, videoUrl: result.outputs[0].file_url })
-    } else if (status === "failed") {
-      emit(jobId, "error", { message: "Rendering failed" })
-    }
-  }
-}
-```
+If we need horizontal scale post-Phase-2, the FastAPI service is trivially deployable to Fly.io / Render / Railway (single container, no exotic deps).
 
 ---
 
-## Layer 3: Data extraction (Scraper)
+## Layer 3: Listing source
 
-**Stack:** Playwright (headless Chromium) running in a serverless function or container.
+### Phase 1: Fixtures
 
-**Input:** Listing URL (e.g., `https://airbnb.com/rooms/12345`)
+`backend/src/agent/fixture_loader.py` reads JSON files from `backend/src/agent/fixtures/`, keyed by listing URL or ID. Listings are hand-captured via a DevTools snippet in the user's real browser session. This sidesteps Airbnb's anti-bot during the hackathon sprint.
 
-**Output:** Structured listing data object:
+### Phase 2: Live Playwright scrape
 
-```typescript
-interface ListingData {
-  platform: "airbnb" | "booking" | "vrbo"
-  title: string
-  description: string
-  location: {
-    city: string
-    country: string
-    coordinates: { lat: number, lng: number }
-  }
-  photos: Array<{
-    url: string
-    caption?: string    // Airbnb provides captions for some photos
-    category?: string   // "bedroom", "bathroom", "exterior", etc.
-  }>
-  amenities: string[]   // ["Pool", "Wi-Fi", "Kitchen", "Ocean view", ...]
-  rating: number         // 4.85
-  reviewCount: number
-  topReviews: Array<{
-    text: string
-    rating: number
-    author: string
-  }>
-  price: {
-    amount: number
-    currency: string
-    period: string       // "night"
-  }
-  propertyType: string   // "Entire home", "Private room", etc.
-  hostName: string
-  guestCapacity: number
-  bedrooms: number
-  bathrooms: number
-}
-```
+Replace the fixture loader with a Playwright-driven scraper using a persistent context (real browser profile) to dodge basic bot detection. Strategy:
 
-**Scraping strategy for Airbnb (MVP):**
+1. Navigate to the listing URL.
+2. Wait for the photo carousel to render.
+3. Extract `__NEXT_DATA__` from the page source — Airbnb embeds the full listing as JSON for SSR hydration.
+4. Map to the same `ScrapedListing` Pydantic model the fixture loader produces. **The agent layer does not know whether data came from a fixture or a live scrape.** This is the seam.
 
-Airbnb uses SSR with hydration data embedded in `<script>` tags. The most reliable extraction method:
+Fallback: if `__NEXT_DATA__` is missing or the schema has shifted, fall back to LLM extraction from `page.textContent()` against a structured prompt. Only used when the structured path fails.
 
-1. Navigate to the listing URL with Playwright
-2. Wait for the page to fully render (wait for photo carousel to load)
-3. Extract the `__NEXT_DATA__` JSON from the page source (contains all listing data in structured form)
-4. Parse the JSON and map to our `ListingData` interface
-5. Download all photo URLs from the parsed data
+Photos: Airbnb CDN URLs are public and don't require auth. Pass them straight to Hera (or to Nanobanana first, if outpaint is on).
 
-**Fallback:** If `__NEXT_DATA__` is not available or the structure has changed, use LLM extraction:
-1. Get the full page text via `page.textContent()`
-2. Send to Claude with a structured extraction prompt
-3. Parse the structured output
-
-**Photo download:** Download all photos to temporary storage (or pass URLs directly if they're publicly accessible). Airbnb photo URLs are typically CDN URLs that don't require auth.
+**Risks:**
+- Anti-bot escalation. Mitigation: hold one or two pre-captured fixtures as a fallback for live demos.
+- HTML schema drift. Mitigation: monitor the LLM-extraction fallback rate and re-anchor the parser when it spikes.
 
 ---
 
-## Layer 4: Image processing (Nanobanana outpainting)
+## Layer 4: Image processing — Nanobanana outpainting (Phase 2, toggle-gated)
 
-**Stack:** Nanobanana API for outpainting.
+**Purpose:** Convert landscape (4:3 / 16:9) listing photos to 9:16 portrait without cropping, by extending vertically (AI-generated ceiling above, floor below). This preserves the full original image content.
 
-**Purpose:** Convert landscape/4:3 listing photos to 9:16 portrait format by extending the image vertically (adding ceiling above and floor below). This preserves the full original image content — nothing is cropped.
+**Why this exists as a layer rather than letting Hera handle aspect ratio:** Hera will accept landscape references and produce 9:16 output, but it crops or letterboxes. For listings where the visual subject (a pool, a view) is centered horizontally and uses the full landscape frame, vertical extension produces a more flattering portrait composition than a center crop. The user has confirmed they want this as a feature; the toggle on the landing page lets us A/B the perceived quality on a single listing.
 
-**Input:** Original listing photo URL (typically 4:3 or 16:9 landscape)
-
-**Output:** 9:16 portrait version of the same photo with AI-generated ceiling/floor extensions
-
-**Processing pipeline per photo:**
+**Pipeline per photo (5 in parallel):**
 
 ```
-1. Download original photo
-2. Detect current aspect ratio
-3. Calculate required vertical extension:
-   - Original: 4:3 (e.g., 2000×1500)
-   - Target: 9:16
-   - New height: original_width × (16/9) = 2000 × 1.778 = 3556px
-   - Extension needed: 3556 - 1500 = 2056px (1028px top + 1028px bottom)
-4. Call Nanobanana outpainting API:
-   - Source image
-   - Direction: top + bottom
-   - Target aspect ratio: 9:16
-5. Return outpainted image URL
+1. Detect current aspect ratio (httpx HEAD or download to a buffer).
+2. Compute target dimensions: new_height = original_width × (16/9).
+3. Compute extension: total_extension = new_height - original_height,
+   split evenly top + bottom.
+4. Call Nanobanana outpaint endpoint:
+     direction: top + bottom
+     target_aspect_ratio: 9:16
+5. Return Nanobanana CDN URL of the outpainted image.
 ```
 
-**Why outpainting works well here:** The extended areas are almost always ceiling (white/neutral) and floor (wood/tile/carpet) for interiors, or sky and ground for exteriors. These are visually repetitive and simple for outpainting models to generate convincingly.
+**Configuration:**
+- `outpaint_enabled` flag flows in via `POST /api/listing` body. Default off until we have evidence the outpainted version performs better; then flip default and keep the toggle for the demo narrative.
+- Per-photo timeout 30s. On any single-photo failure, fall back to that photo's original URL (Hera handles the mixed aspect refs gracefully).
 
-**Photo ranking (before outpainting):**
-
-Not all listing photos should be included in the video. Use Claude's vision capability to rank photos:
-
-```
-System: You are a social media content expert. Rank these listing photos
-by their visual impact for a 15-second property showcase video.
-Prioritize: hero shots (pool, view, exterior), then unique amenities,
-then interior highlights. Deprioritize: generic rooms, bathroom close-ups,
-neighborhood shots.
-Output: JSON array of photo indices ranked by priority.
-```
-
-Select top 5 photos for outpainting and video inclusion.
+**Why outpainting works for listings:** the extended areas are almost always ceiling (white/neutral) and floor (wood/tile/carpet) for interiors, or sky and ground for exteriors. These are visually repetitive and simple for the model to generate convincingly.
 
 ---
 
-## Layer 5: Creative agent
+## Layer 5: Agent
 
-**Stack:** Claude API (claude-sonnet-4-20250514 for speed, or claude-opus-4-20250414 for quality).
-
-**Detailed specification in separate document:** `03-agent-pipeline.md`
-
-**Summary:** The creative agent takes scraped listing data + outpainted portrait photos + performance beliefs, and outputs a complete Hera `create_video` API payload. It makes all editorial decisions: hook selection, story arc, scene ordering, timing, text overlays, style, and CTA.
+Full specification in `03-agent-pipeline.md`. Summary for this document:
 
 **Input:**
-- `ListingData` object from scraper
-- Array of 5 outpainted portrait photo URLs (uploaded to Hera CDN)
-- Top 10 agent beliefs from performance database
+- `ScrapedListing` (from fixture loader or scraper).
+- Phase 2: top 10 `agent_beliefs` rows ordered by confidence, fetched from Supabase. Phase 1 uses the same beliefs hardcoded into `angles.py`.
 
-**Output:** Complete Hera `create_video` request body (see agent pipeline doc for full spec)
+**Steps (single Anthropic call with structured output):**
+1. Score each photo against angle priority keywords using deterministic Python (`image_scorer.py`).
+2. Send listing summary + photo labels to Claude Sonnet via the Anthropic SDK. Receive `{ angle_id, confidence, rationale }` as JSON.
+3. Fill the angle's prompt template with listing fields (`prompt_builder.py`).
+4. Return `AgentDecision` with the angle, rationale, top 5 image URLs (post-outpaint if enabled), and the assembled Hera prompt.
+
+**Why the angle taxonomy stayed intent-based (`urban_escape`, `beach_retreat`, `remote_work`, `entertainer`, `romantic_getaway`, `family_base`):** the MVP shipped with this taxonomy and prompts are tuned to it. Property-type categories (beach / mountain / urban / luxury / unique) are demoted to a *style-mapping helper* — see `03-agent-pipeline.md` for how categories get used to pick a Hera `style_id` and palette without overriding the angle-driven editorial decision.
 
 ---
 
-## Layer 6: Video rendering (Hera API)
+## Layer 6: Video rendering — Hera REST
 
-**Stack:** Hera REST API (`https://api.hera.video/v1`)
+Direct REST against `https://api.hera.video/v1`, no MCP. Auth via `x-api-key` header.
 
-**Authentication:** `x-api-key` header with team's hackathon API key.
+**Calls used:**
 
-**Three API calls in sequence:**
-
-### 6a. Upload assets — `upload_file`
-
-Upload each outpainted portrait photo to Hera's CDN so they can be referenced in the video generation prompt.
-
-```
-For each photo:
-  POST upload_file
-  Input: { url: "<photo_url>", file_name: "property_photo_1.jpg" }
-  Output: { url: "https://hera-cdn.com/uploads/abc123.jpg" }
-```
-
-This returns hosted URLs that can be passed to `create_video` as `reference_image_urls` or in the `assets` array.
-
-### 6b. Create video — `create_video`
-
-Submit the creative agent's output as a video generation job.
-
-```
-POST /videos
-Body: {
-  "prompt": "<agent-generated prompt>",
-  "reference_image_urls": ["<hera-cdn-url-1>", ..., "<hera-cdn-url-5>"],
-  "duration_seconds": 15,
-  "style_id": "<agent-selected-style>",
-  "assets": [
-    { "type": "image", "url": "<hera-cdn-url>" },
-    ...
-  ],
-  "outputs": [
-    {
-      "format": "mp4",
-      "aspect_ratio": "9:16",
-      "fps": "30",
-      "resolution": "1080p"
-    }
-  ]
-}
-Response: { "video_id": "vid_abc123", "project_url": "https://app.hera.video/motions/..." }
-```
-
-### 6c. Poll status — `GET /videos/{video_id}`
-
-Poll every 3 seconds until status is `success` or `failed`.
-
-```
-GET /videos/vid_abc123
-Response: {
-  "video_id": "vid_abc123",
-  "status": "success",
-  "project_url": "https://app.hera.video/motions/...",
-  "outputs": [
-    {
-      "status": "success",
-      "file_url": "https://hera-cdn.com/exports/video.mp4",
-      "config": { "format": "mp4", "aspect_ratio": "9:16", ... }
-    }
-  ]
-}
-```
-
-**Important Hera parameters for our use case:**
-
-| Parameter | Our usage | Rationale |
+| Endpoint | When | Why |
 |---|---|---|
-| `prompt` | Agent-generated, ~100–300 words | Describes the full video: scenes, transitions, text overlays, mood, pacing |
-| `reference_image_urls` | Top 5 outpainted photos | Hera uses these as visual source material for the motion graphics |
-| `duration_seconds` | 15 (default, agent can override) | Optimal for Reels/TikTok engagement |
-| `style_id` | Agent-selected per property category | Ensures visual consistency. Create styles in Hera dashboard pre-hackathon |
-| `outputs.aspect_ratio` | Always `"9:16"` | Vertical video for social |
-| `outputs.resolution` | `"1080p"` | Standard for social platforms |
+| `POST /videos` | After agent produces decision | Submit job, get `video_id` |
+| `GET /videos/{id}` | Polling loop, every 5s | Wait for `status === "success"` |
+| `POST /files` | (not used in Phase 1, optional Phase 2) | Re-upload images if Airbnb CDN URLs are ever rejected as references |
 
-**Pre-hackathon setup needed:**
-- Create 3–5 Hera styles (beach-warm, urban-minimal, mountain-cozy, luxury-dark, rural-bright) in the Hera dashboard
-- Note down their `style_id` values for the agent to reference
-- Test each style with a sample prompt to verify quality
+**Submitted parameters:**
+
+| Parameter | Value | Source |
+|---|---|---|
+| `prompt` | Agent-built natural language scene plan | `AgentDecision.hera_prompt` |
+| `reference_image_urls` | Top 5 photos (post-outpaint if enabled), ordered by scene usage | `AgentDecision.selected_image_urls` |
+| `duration_seconds` | 15 | Hardcoded in `main.py`. Agent may override later. |
+| `outputs[0]` | `mp4`, `9:16`, `30fps`, `1080p` | Hardcoded in `main.py` |
+| `style_id` | (Phase 2) From the property-category-to-style table | See `03-agent-pipeline.md` |
+
+**Latency, observed:** 147s wall time for a 15s 9:16 1080p video (probe). Submission is sub-second; rendering is the bottleneck. Demo strategy is to pre-render the demo video and let the reasoning card carry the live audience while the pre-rendered MP4 plays.
 
 ---
 
-## Layer 7: Performance learning pipeline (async)
+## Layer 7: Persistence + performance learning (Phase 2)
 
-**Stack:** Supabase (Postgres) for storage, cron job (Vercel Cron or standalone) for polling.
+**Out of scope for Phase 1.** The MVP is stateless — every request runs the full pipeline against fixtures and Hera, nothing persists. The schema below is what we add in Phase 2.
 
-**This layer operates independently of the main generation pipeline.** It runs periodically, collects social media performance data, and updates the agent's belief system.
-
-### Database schema
+### Supabase Postgres schema
 
 ```sql
--- Videos table: tracks every generated video
-CREATE TABLE videos (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  job_id TEXT NOT NULL,
-  listing_url TEXT NOT NULL,
-  hera_video_id TEXT NOT NULL,
-  hera_project_url TEXT,
-  video_url TEXT,                    -- final MP4 download URL
-  listing_data JSONB NOT NULL,       -- full scraped listing data
-  agent_decisions JSONB NOT NULL,    -- what the agent decided and why
-  hera_payload JSONB NOT NULL,       -- exact payload sent to Hera
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- One row per video the agent ever generated
+create table videos (
+  id uuid primary key default gen_random_uuid(),
+  listing_url text not null,
+  hera_video_id text not null,
+  hera_project_url text,
+  video_url text,                       -- final MP4, refreshed on demand (S3 pre-signed, 24h)
+  outpaint_enabled boolean not null default false,
+  listing_data jsonb not null,          -- full ScrapedListing
+  agent_decision jsonb not null,        -- full AgentDecision
+  hera_payload jsonb not null,          -- exact body sent to POST /videos
+  created_at timestamptz default now()
 );
 
--- Publications table: tracks where videos were posted
-CREATE TABLE publications (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  video_id UUID REFERENCES videos(id),
-  platform TEXT NOT NULL,            -- "instagram", "tiktok", "youtube"
-  platform_post_id TEXT,             -- platform's ID for the post
-  published_at TIMESTAMPTZ DEFAULT NOW()
+-- Phase 3: one row per platform publication
+create table publications (
+  id uuid primary key default gen_random_uuid(),
+  video_id uuid references videos(id) on delete cascade,
+  platform text not null,               -- "instagram" | "tiktok" | "youtube"
+  platform_post_id text,
+  published_at timestamptz default now()
 );
 
--- Performance snapshots: periodic analytics pulls
-CREATE TABLE performance_snapshots (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  publication_id UUID REFERENCES publications(id),
-  snapshot_at TIMESTAMPTZ DEFAULT NOW(),
-  views INTEGER,
-  likes INTEGER,
-  saves INTEGER,
-  shares INTEGER,
-  comments INTEGER,
-  watch_through_rate FLOAT,          -- 0.0 to 1.0
-  avg_watch_seconds FLOAT
+-- Phase 3: periodic analytics pulls per publication
+create table performance_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  publication_id uuid references publications(id) on delete cascade,
+  snapshot_at timestamptz default now(),
+  views int, likes int, saves int, shares int, comments int,
+  watch_through_rate float,
+  avg_watch_seconds float
 );
 
--- Agent beliefs: the agent's learned editorial rules
-CREATE TABLE agent_beliefs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  rule_key TEXT UNIQUE NOT NULL,     -- e.g., "pool_hook_performance"
-  rule_text TEXT NOT NULL,           -- human-readable belief
-  confidence FLOAT DEFAULT 0.5,     -- 0.0 to 1.0
-  evidence_count INTEGER DEFAULT 0,
-  last_updated TIMESTAMPTZ DEFAULT NOW()
+-- Agent's editorial rules. Hardcoded seed in Phase 2. Self-updating from Phase 3.
+create table agent_beliefs (
+  id uuid primary key default gen_random_uuid(),
+  rule_key text unique not null,        -- e.g. "pool_hook_priority"
+  rule_text text not null,              -- human-readable rule the agent applies
+  confidence float default 0.5,
+  evidence_count int default 0,
+  last_updated timestamptz default now()
 );
 ```
 
-### Belief update cycle
+RLS is enabled on every table from day 0 (per global security rule). Phase 2 has no end-user auth, so writes go through a service-role key on the backend; reads are server-side only.
+
+### Belief update cycle (Phase 3, when publications start happening)
 
 ```
 Every 6 hours (cron):
   1. For each publication with a connected social account:
-     - Pull latest analytics via platform API (IG Insights, TikTok Analytics)
-     - Insert performance_snapshot row
+     - Pull latest analytics via the platform API
+     - Insert a performance_snapshot row
 
-  2. For each video with >24h of performance data:
-     - Look up agent_decisions (which hook, which style, which pacing, etc.)
-     - Compare performance metrics against the population average
+  2. For each video with >24h of post-publication data:
+     - Look up its agent_decision JSONB
+     - Compare its performance against the population average
 
   3. Update beliefs:
-     - If videos with pool hooks have higher watch-through-rate:
-       UPDATE agent_beliefs SET confidence = confidence + 0.05,
-       evidence_count = evidence_count + 1
-       WHERE rule_key = 'pool_hook_priority'
-     - If 15s videos outperform 30s:
-       Same pattern for 'optimal_duration_15s'
+     - Pool-hook beach videos outperforming the average by >20%
+       → confidence += 0.05, evidence_count += 1 on rule_key='pool_hook_priority'
+     - 15s-duration videos outperforming 30s on the same property type
+       → same pattern on rule_key='optimal_duration_15s'
 ```
 
-### Initial hardcoded beliefs (for hackathon demo)
+Initial seed beliefs (loaded into `agent_beliefs` on Phase 2 first deploy) are listed in `03-agent-pipeline.md`.
 
-```json
-[
-  { "rule_key": "hook_with_hero_shot", "rule_text": "Always open with the single most visually striking photo (pool, view, exterior)", "confidence": 0.85 },
-  { "rule_key": "duration_15s", "rule_text": "15 seconds is optimal for Reels and TikTok engagement", "confidence": 0.80 },
-  { "rule_key": "cta_at_end", "rule_text": "End every video with a clear CTA showing booking link or QR code", "confidence": 0.90 },
-  { "rule_key": "location_in_first_frame", "rule_text": "Show city name or neighborhood in the first 2 seconds", "confidence": 0.70 },
-  { "rule_key": "social_proof_before_cta", "rule_text": "Place a review quote or rating badge just before the CTA", "confidence": 0.75 },
-  { "rule_key": "warm_palette_for_beach", "rule_text": "Beach and tropical properties should use warm color palettes (amber, coral, golden tones)", "confidence": 0.80 },
-  { "rule_key": "minimal_palette_for_urban", "rule_text": "Urban and city properties should use clean, minimal palettes (white, gray, single accent)", "confidence": 0.75 },
-  { "rule_key": "fast_cuts_for_amenities", "rule_text": "Amenity showcase sequences should use quick cuts (0.8–1.2s per scene)", "confidence": 0.70 },
-  { "rule_key": "slow_reveal_for_hero", "rule_text": "Hero shots deserve longer screen time (2–3s) with subtle zoom or pan", "confidence": 0.80 },
-  { "rule_key": "music_over_voiceover", "rule_text": "Background music with text overlays outperforms voiceover for property videos", "confidence": 0.65 }
-]
-```
+### How beliefs flow back into the agent
+
+Phase 2: `classifier.py` does a `SELECT rule_text FROM agent_beliefs ORDER BY confidence DESC LIMIT 10` and injects the results into the system prompt. The agent reads them, applies relevant ones, and writes the applied `rule_key`s into `AgentDecision.beliefs_applied` (new field, additive — does not break Phase 1 callers).
 
 ---
 
 ## Data flow summary
 
 ```
+[Phase 1, shipped]
+
 User pastes URL
-  │
-  ▼
-[Frontend] ──POST──▶ [API Orchestrator]
-                           │
-                     ┌─────┴─────┐
-                     ▼           ▼
-              [Scraper]    [Photo Ranker]
-              (Playwright)  (Claude Vision)
-                     │           │
-                     │     ┌─────┘
-                     │     ▼
-                     │  [Nanobanana Outpainting]
-                     │  (4:3 → 9:16 per photo)
-                     │     │
-                     │     ▼
-                     │  [Hera upload_file]
-                     │  (get CDN URLs)
-                     │     │
-                     └──┬──┘
-                        ▼
-                 [Creative Agent]
-                 (Claude API)
-                 + beliefs from DB
-                        │
-                        ▼
-                 [Hera create_video]
-                        │
-                   (poll get_video)
-                        │
-                        ▼
-                 [Video URL returned]
-                        │
-                        ▼
-                 [Frontend displays video]
+   │
+   ▼
+[Vite frontend]
+   │ POST /api/listing
+   ▼
+[FastAPI]
+   ├─ fixture_loader → ScrapedListing
+   ├─ image_scorer (deterministic) → top 5 URLs
+   ├─ classifier (Anthropic SDK) → angle + rationale
+   └─ prompt_builder → AgentDecision
+   │
+   ▼
+[Frontend renders reasoning card]
+   │
+   │ POST /api/generate
+   ▼
+[FastAPI]
+   └─ POST /videos (Hera) → video_id
+   │
+   ▼
+[Frontend polls GET /api/videos/{id} every 5s]
+   │
+   ▼
+[Hera returns file_url on success → frontend plays video]
+
+
+[Phase 2, additive]
+
+User pastes URL with outpaint toggle on
+   │
+   ▼
+[FastAPI POST /api/listing]
+   ├─ scraper (Playwright) → ScrapedListing                      [replaces fixtures]
+   ├─ image_scorer → top 5 URLs
+   ├─ outpainter (Nanobanana) → 5× 9:16 portrait URLs            [if toggle on]
+   ├─ beliefs (Supabase) → top 10 by confidence                  [new]
+   ├─ classifier → AgentDecision (beliefs in prompt)
+   └─ prompt_builder
+   │
+   ▼
+[Persist video row in Supabase]
+   │
+   ▼
+[same /generate + polling flow as Phase 1]
 ```
 
 ---
 
 ## Infrastructure and deployment
 
-### Hackathon deployment (simple)
+### Phase 1 (running today)
 
-| Component | Service | Notes |
+Local dev only. `make dev` starts both servers. No production deployment yet.
+
+### Phase 2 deployment options (when we ship)
+
+| Component | Recommended | Why |
 |---|---|---|
-| Frontend + API | Vercel (Next.js) | Single deployment, free tier sufficient |
-| Database | Supabase | Free tier: 500MB, enough for hackathon |
-| Scraper runtime | Vercel serverless OR separate container | Playwright needs headless Chromium |
-| Secrets | Vercel env vars | `HERA_API_KEY`, `CLAUDE_API_KEY`, `NANOBANANA_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY` |
-
-### Playwright on Vercel caveat
-
-Playwright + Chromium is too large for Vercel's serverless function size limit (50MB). Options:
-1. **Browserless.io** — Managed headless browser as a service. Connect Playwright to their remote browser. Simplest for hackathon.
-2. **Separate scraper service** — Run the scraper on Railway/Render as a separate API. The orchestrator calls it via HTTP.
-3. **Use Airbnb's structured data directly** — Extract `__NEXT_DATA__` via a lightweight `fetch()` call without Playwright. May work for Airbnb specifically since they SSR everything.
-
-**Recommendation for hackathon:** Option 3 first (try plain fetch), fall back to option 1 (Browserless) if needed.
+| FastAPI backend | Fly.io single container | Persistent context for Playwright, no 50 MB cold-start cap, no Lambda timeout |
+| Vite frontend | Vercel static | Free tier covers it, fast CDN, no SSR requirement |
+| Database | Supabase | RLS + Postgres + cron scheduler in one |
+| Secrets | Fly.io secrets + Vercel env vars | Standard, no SaaS lock-in |
 
 ### Environment variables
 
 ```
-HERA_API_KEY=hera_...
-CLAUDE_API_KEY=sk-ant-...
-NANOBANANA_API_KEY=nb_...
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_KEY=eyJ...
+# Backend
+HERA_API_KEY=hera_…
+ANTHROPIC_HACKATHON_KEY=sk-ant-…
+NANOBANANA_API_KEY=nb_…              # Phase 2
+SUPABASE_URL=https://….supabase.co   # Phase 2
+SUPABASE_SERVICE_KEY=eyJ…            # Phase 2 (server-only, service role)
+
+# Frontend
+VITE_BACKEND_URL=http://localhost:8000   # dev
+VITE_BACKEND_URL=https://api.<domain>    # prod
 ```
+
+The frontend bundle must never reference any of the backend secrets. The `VITE_` prefix is the only way values reach the bundle — keep secrets out of variables with that prefix.
 
 ---
 
 ## Error handling and resilience
 
-| Failure point | Handling |
-|---|---|
-| Scraper can't parse listing | Return clear error to user. Suggest checking URL. |
-| Photo download fails | Skip that photo, continue with remaining. Min 2 photos required. |
-| Nanobanana API timeout | Use original landscape photo as fallback (Hera can handle mixed aspect ratios) |
-| Claude agent returns invalid JSON | Retry once with stricter prompt. If still fails, use hardcoded defaults. |
-| Hera create_video fails | Retry once. If fails again, show error with "try again" button. |
-| Hera polling timeout (>3 min) | Store job, notify user async (email/push). |
+| Failure point | Phase 1 handling | Phase 2 handling |
+|---|---|---|
+| Fixture missing | `404 fixture_not_found` | (replaced by scrape errors) |
+| Scrape fails / blocked | n/a | `503 scrape_blocked` / `503 scrape_failed`, fall back to fixture if available |
+| Photo fetch fails (outpaint path) | n/a | Skip that photo, continue with the rest. Min 2 photos required. |
+| Nanobanana timeout | n/a | Use the original landscape URL for that photo. Hera handles mixed aspects. |
+| Classifier returns invalid JSON | `500 classifier_failed` | Retry once with temperature 0; on second failure, hardcoded fallback decision (see `03-agent-pipeline.md`) |
+| Hera POST /videos fails | `500 hera_submission_failed`, frontend shows retry button | Retry once server-side; same surface to client |
+| Polling > 3 min | Frontend timeout, error state | Persist a `videos` row with status="failed" so we have a record |
+
+Retry-with-backoff is explicitly **out of scope** until Phase 2 ships and we have the persistence layer to record retry state. Don't build it speculatively.
 
 ---
 
-## Cost estimation per video generation
+## Cost estimation per video
 
-| Service | Call | Estimated cost |
+| Layer | Phase 1 | Phase 2 |
 |---|---|---|
-| Claude (scraper assist) | 1 call, ~2K tokens | ~$0.01 |
-| Claude (photo ranking) | 1 call with images, ~1K tokens | ~$0.02 |
-| Nanobanana outpainting | 5 images | ~$0.10–0.25 |
-| Claude (creative agent) | 1 call, ~3K tokens | ~$0.02 |
-| Hera upload_file | 5 calls | Free (included) |
-| Hera create_video | 1 video, 15s, 1080p | Depends on plan/credits |
-| **Total per video** | | **~$0.15–0.30 + Hera credits** |
+| Anthropic (classifier) | 1 call, ~1.5K tokens | ~$0.005 |
+| Anthropic (Phase 2 photo ranking, optional) | — | ~$0.02 |
+| Nanobanana outpaint (toggle on) | — | ~$0.10–0.25 for 5 photos |
+| Hera `POST /videos` upload | — | — |
+| Hera render | Credit-based | Credit-based |
+| Supabase row + storage | — | rounding error |
+| **Total per video (toggle off)** | **~$0.005 + Hera credits** | **~$0.025 + Hera credits** |
+| **Total per video (toggle on)** | n/a | **~$0.13–0.28 + Hera credits** |
+
+The outpaint toggle has a real cost asymmetry. That's another argument for keeping it user-controlled rather than always-on.
