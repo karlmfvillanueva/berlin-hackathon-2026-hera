@@ -1,119 +1,331 @@
 import { useEffect, useRef, useState } from "react";
-import "./App.css";
+import "./index.css";
+import type { AppState, AgentDecision, ScrapedListing } from "./types";
+import { postListing, postGenerate, pollStatus } from "./api/client";
+import { Header } from "./components/Header";
+import { UrlInput } from "./components/UrlInput";
+import { AttributeCard } from "./components/AttributeCard";
+import { StatusRow } from "./components/StatusRow";
+import { VideoPlayer } from "./components/VideoPlayer";
+import { RationaleRail } from "./components/RationaleRail";
+import { ErrorState } from "./components/ErrorState";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000";
+const POLL_INTERVAL_MS = 5000;
+const POLL_TIMEOUT_MS = 3 * 60 * 1000;
 
-type JobStatus = "in-progress" | "success" | "failed";
+function stepFromScreen(screen: AppState["screen"]): number {
+  if (screen === "idle") return 1;
+  if (screen === "reviewing") return 2;
+  if (screen === "generating") return 3;
+  return 4;
+}
 
-type GetVideoResponse = {
-  video_id: string;
-  project_url?: string | null;
-  status: JobStatus;
-  outputs: Array<{
-    status: JobStatus;
-    file_url?: string | null;
-    error?: string | null;
-  }>;
-};
-
-function App() {
-  const [prompt, setPrompt] = useState(
-    "A bright animated lower-third revealing the title 'Berlin 2026'.",
+export default function App() {
+  const [state, setState] = useState<AppState>({ screen: "idle" });
+  const [listingUrl, setListingUrl] = useState(
+    "https://www.airbnb.com/rooms/kreuzberg-loft-demo",
   );
   const [submitting, setSubmitting] = useState(false);
-  const [videoId, setVideoId] = useState<string | null>(null);
-  const [status, setStatus] = useState<JobStatus | null>(null);
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const pollRef = useRef<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [scriptStep, setScriptStep] = useState(0);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setFileUrl(null);
-    setStatus(null);
-    setVideoId(null);
+  const pollIntervalRef = useRef<number | null>(null);
+  const pollStartRef = useRef<number>(0);
+
+  function clearPolling() {
+    if (pollIntervalRef.current !== null) {
+      window.clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  }
+
+  function goIdle() {
+    clearPolling();
+    setElapsedSeconds(0);
+    setScriptStep(0);
+    setState({ screen: "idle" });
+  }
+
+  async function handleGenerate(url: string) {
+    setListingUrl(url);
     setSubmitting(true);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/videos`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-      if (!res.ok) throw new Error(`Backend ${res.status}: ${await res.text()}`);
-      const data = (await res.json()) as { video_id: string };
-      setVideoId(data.video_id);
-      setStatus("in-progress");
+      const { listing, decision } = await postListing(url);
+      setState({ screen: "reviewing", listing, decision });
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setState({
+        screen: "error",
+        message: err instanceof Error ? err.message : "Failed to fetch listing.",
+      });
     } finally {
       setSubmitting(false);
     }
   }
 
+  async function handleContinue(listing: ScrapedListing, decision: AgentDecision) {
+    setSubmitting(true);
+    setScriptStep(0);
+    setElapsedSeconds(0);
+    try {
+      const { video_id } = await postGenerate(listingUrl, listing, decision);
+      setState({ screen: "generating", listing, decision, videoId: video_id });
+    } catch (err) {
+      setState({
+        screen: "error",
+        message: err instanceof Error ? err.message : "Failed to start generation.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Polling: keyed to the videoId so it re-runs only when a new job starts
   useEffect(() => {
-    if (!videoId || status !== "in-progress") return;
+    if (state.screen !== "generating") return;
+    const { videoId, listing, decision } = state;
+
     let cancelled = false;
-    async function poll() {
+    pollStartRef.current = Date.now();
+
+    setScriptStep(1);
+    const step2Timer = window.setTimeout(() => {
+      if (!cancelled) setScriptStep(2);
+    }, 1000);
+
+    async function doPoll() {
+      if (cancelled) return;
+
+      const elapsed = Date.now() - pollStartRef.current;
+      setElapsedSeconds(Math.floor(elapsed / 1000));
+
+      if (elapsed >= POLL_TIMEOUT_MS) {
+        clearPolling();
+        if (!cancelled) {
+          setState({ screen: "error", message: "Generation timed out after 3 minutes." });
+        }
+        return;
+      }
+
       try {
-        const res = await fetch(`${BACKEND_URL}/api/videos/${videoId}`);
-        if (!res.ok) throw new Error(`Status ${res.status}`);
-        const data = (await res.json()) as GetVideoResponse;
+        const data = await pollStatus(videoId);
         if (cancelled) return;
-        setStatus(data.status);
+
         if (data.status === "success") {
-          setFileUrl(data.outputs[0]?.file_url ?? null);
+          clearPolling();
+          const fileUrl = data.outputs[0]?.file_url ?? "";
+          setState({ screen: "done", listing, decision, fileUrl });
         } else if (data.status === "failed") {
-          setError(data.outputs[0]?.error ?? "Hera reported failure");
+          clearPolling();
+          setState({
+            screen: "error",
+            message: data.outputs[0]?.error ?? "Hera reported a failure.",
+          });
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) {
+          clearPolling();
+          setState({
+            screen: "error",
+            message: err instanceof Error ? err.message : "Polling failed.",
+          });
+        }
       }
     }
-    pollRef.current = window.setInterval(poll, 4000);
-    void poll();
+
+    void doPoll();
+    pollIntervalRef.current = window.setInterval(doPoll, POLL_INTERVAL_MS);
+
     return () => {
       cancelled = true;
-      if (pollRef.current) window.clearInterval(pollRef.current);
+      clearPolling();
+      window.clearTimeout(step2Timer);
     };
-  }, [videoId, status]);
+    // videoId is stable for the lifetime of a generation job; listing/decision don't change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.screen === "generating" ? state.videoId : null]);
+
+  const step = stepFromScreen(state.screen);
+  const estRemaining = Math.max(0, 90 - elapsedSeconds);
 
   return (
-    <main className="container">
-      <h1>Hera Video Studio</h1>
-      <p className="muted">Berlin Hackathon 2026 · Vite + FastAPI + Hera</p>
+    <div className="min-h-screen bg-white flex flex-col font-sans">
+      <Header step={step} />
 
-      <form onSubmit={submit}>
-        <label htmlFor="prompt">Prompt</label>
-        <textarea
-          id="prompt"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          rows={4}
-          required
-        />
-        <button type="submit" disabled={submitting || status === "in-progress"}>
-          {submitting ? "Submitting" : status === "in-progress" ? "Rendering" : "Generate"}
-        </button>
-      </form>
-
-      {videoId && (
-        <section className="job">
-          <div>
-            <span className="label">Video ID</span>
-            <code>{videoId}</code>
-          </div>
-          <div>
-            <span className="label">Status</span>
-            <span>{status ?? "—"}</span>
-          </div>
-          {fileUrl && <video src={fileUrl} controls autoPlay loop className="output" />}
-        </section>
+      {/* Screen 1 — idle */}
+      {state.screen === "idle" && (
+        <main className="flex-1 flex items-center justify-center">
+          <UrlInput onSubmit={handleGenerate} loading={submitting} />
+        </main>
       )}
 
-      {error && <p className="error">{error}</p>}
-    </main>
+      {/* Screen 2 — reviewing */}
+      {state.screen === "reviewing" && (
+        <main className="flex-1 flex flex-col px-8 pt-10 pb-8 gap-6 max-w-[1280px] mx-auto w-full">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-[28px] font-bold text-black leading-[1.2] m-0">
+              Here's what we found.
+            </h2>
+            <p className="text-[14px] font-normal text-[#666666] leading-[1.4] max-w-[640px] m-0">
+              Our agent scraped the listing and picked these attributes. Approve each card or edit before we generate.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-5">
+            <AttributeCard label="TITLE">
+              <span className="line-clamp-3">{state.listing.title}</span>
+            </AttributeCard>
+
+            <AttributeCard label="LOCATION">
+              <span className="line-clamp-3">{state.listing.location}</span>
+            </AttributeCard>
+
+            <AttributeCard label="VIBES / TAGS">
+              <span className="line-clamp-3">{state.decision.vibes}</span>
+            </AttributeCard>
+
+            <AttributeCard label={`HERO IMAGES (${state.decision.selected_image_urls.length})`}>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2 overflow-hidden">
+                  {state.decision.selected_image_urls.slice(0, 4).map((url, i) => (
+                    <div
+                      key={i}
+                      className="w-[88px] h-[88px] bg-[#E5E5E5] shrink-0 overflow-hidden"
+                    >
+                      <img
+                        src={url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    </div>
+                  ))}
+                  {state.decision.selected_image_urls.length === 0 && (
+                    <div className="w-[88px] h-[88px] bg-[#E5E5E5]" />
+                  )}
+                </div>
+                {state.decision.selected_image_urls.length > 4 && (
+                  <span className="text-[12px] font-normal text-[#9CA3AF]">
+                    +{state.decision.selected_image_urls.length - 4} more · agent picked these as strongest
+                  </span>
+                )}
+              </div>
+            </AttributeCard>
+
+            <AttributeCard label="BEDROOMS / SLEEPS">
+              <span className="line-clamp-3">{state.listing.bedrooms_sleeps}</span>
+            </AttributeCard>
+
+            <AttributeCard label="PRICE / NIGHT">
+              <span className="line-clamp-3">{state.listing.price_display}</span>
+            </AttributeCard>
+          </div>
+
+          <div className="flex justify-between items-center pt-2">
+            <button
+              onClick={goIdle}
+              className="bg-white border border-black text-[12px] font-normal text-black px-[18px] py-3 cursor-pointer hover:bg-[#FAFAFA] transition-colors duration-100"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => handleContinue(state.listing, state.decision)}
+              disabled={submitting}
+              className="bg-black text-white text-[14px] font-bold px-7 py-3.5 cursor-pointer hover:bg-[#1A1A1A] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-100"
+            >
+              {submitting ? "Starting..." : "Continue → Generate video"}
+            </button>
+          </div>
+        </main>
+      )}
+
+      {/* Screen 3 — generating */}
+      {state.screen === "generating" && (
+        <main className="flex-1 flex flex-col items-center justify-center px-8 py-16 gap-6">
+          <h2 className="text-[32px] font-bold text-black text-center m-0">
+            Generating your video...
+          </h2>
+          <p className="text-[15px] font-normal text-[#666666] leading-[1.4] max-w-[560px] text-center m-0">
+            Our agent is making editorial calls (hook, pacing, emphasis). Hang tight.
+          </p>
+
+          <div className="w-[520px] bg-white border border-black p-6 flex flex-col gap-4">
+            <StatusRow
+              state={scriptStep >= 1 ? "done" : "pending"}
+              label="Analyzed listing"
+            />
+            <StatusRow
+              state={scriptStep >= 2 ? "done" : scriptStep === 1 ? "active" : "pending"}
+              label="Drafted script with hook + pacing"
+            />
+            <StatusRow
+              state="active"
+              label="Rendering motion graphics with Hera"
+              suffix={`~${estRemaining}s`}
+            />
+            <StatusRow state="pending" label="Finalizing" />
+          </div>
+
+          <p className="text-[12px] font-normal text-[#9CA3AF] text-center m-0">
+            Usually takes 60–90 seconds. You can leave this tab.
+          </p>
+
+          <button
+            onClick={goIdle}
+            className="text-[13px] font-normal text-[#555555] underline cursor-pointer bg-transparent border-none hover:text-black transition-colors duration-100 p-0"
+          >
+            Cancel
+          </button>
+        </main>
+      )}
+
+      {/* Screen 4 — done */}
+      {state.screen === "done" && (
+        <main className="flex-1 flex gap-8 p-8 max-w-[1280px] mx-auto w-full">
+          <div className="flex-1 flex flex-col gap-5 min-w-0">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[26px] font-bold text-black">Your video</span>
+              <span className="text-[13px] font-normal text-[#666666]">
+                15s · 1080p · 9:16 · MP4
+              </span>
+            </div>
+
+            <div className="flex justify-center">
+              <VideoPlayer fileUrl={state.fileUrl} />
+            </div>
+
+            <div className="flex gap-3">
+              <a
+                href={state.fileUrl}
+                download
+                className="bg-black text-white text-[14px] font-bold px-6 py-3.5 border border-black hover:bg-[#1A1A1A] transition-colors duration-100 no-underline inline-flex items-center"
+              >
+                ↓&nbsp;&nbsp;Download MP4
+              </a>
+              <button
+                onClick={goIdle}
+                className="bg-white border border-black text-[14px] font-normal text-black px-6 py-3.5 cursor-pointer hover:bg-[#FAFAFA] transition-colors duration-100"
+              >
+                ↻&nbsp;&nbsp;Regenerate
+              </button>
+              <button
+                onClick={() => void navigator.clipboard.writeText(state.fileUrl)}
+                className="bg-white border border-black text-[14px] font-normal text-black px-6 py-3.5 cursor-pointer hover:bg-[#FAFAFA] transition-colors duration-100"
+              >
+                ↗&nbsp;&nbsp;Share link
+              </button>
+            </div>
+          </div>
+
+          <RationaleRail decision={state.decision} />
+        </main>
+      )}
+
+      {/* Error */}
+      {state.screen === "error" && (
+        <ErrorState message={state.message} onRetry={goIdle} />
+      )}
+    </div>
   );
 }
-
-export default App;
