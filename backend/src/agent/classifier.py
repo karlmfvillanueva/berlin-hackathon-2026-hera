@@ -1,10 +1,15 @@
 """LLM-based editorial classifier.
 
-Sends listing summary to Gemini and gets back structured AgentDecision fields
-(vibes, hook, pacing, angle, background) plus the beliefs that influenced the
-decision. Uses Gemini's native JSON-schema mode (response_mime_type +
+Sends listing summary to Gemini 2.5 Pro and gets back structured AgentDecision
+fields (vibes, hook, pacing, angle, background) plus the beliefs that influenced
+the decision. Uses Gemini's native JSON-schema mode (response_mime_type +
 response_schema) — no tool-use boilerplate, the SDK returns a parsed Pydantic
 model on response.parsed.
+
+2.5-Pro is a reasoning model: max_output_tokens covers both thinking and the
+JSON response, so the budget is split via _THINKING_BUDGET. The Gemini 3.x
+preview models would be a drop-in replacement once the project's API key has
+quota for them — only _MODEL needs to change.
 """
 
 import os
@@ -16,8 +21,12 @@ from pydantic import BaseModel, Field
 from src.agent.models import Belief, ScrapedListing
 from src.logger import log
 
-_MODEL = "gemini-3.1-pro-preview"
-_MAX_OUTPUT_TOKENS = 1024
+_MODEL = "gemini-2.5-pro"
+# 2.5-Pro is a reasoning model. max_output_tokens covers BOTH thinking and the
+# JSON response, so we leave plenty of headroom: ~2K for thinking, ~2K for the
+# 5-field schema. Tune _THINKING_BUDGET if classification feels shallow.
+_MAX_OUTPUT_TOKENS = 4096
+_THINKING_BUDGET = 2048
 _TEMPERATURE = 0.4
 
 
@@ -143,6 +152,7 @@ def classify(listing: ScrapedListing, beliefs: list[Belief] | None = None) -> di
             response_schema=EditorialDecisionSchema,
             temperature=_TEMPERATURE,
             max_output_tokens=_MAX_OUTPUT_TOKENS,
+            thinking_config=types.ThinkingConfig(thinking_budget=_THINKING_BUDGET),
         ),
     )
 
