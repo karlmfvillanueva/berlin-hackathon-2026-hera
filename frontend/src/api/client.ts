@@ -18,11 +18,11 @@ export type PollResponse = {
   outputs: { file_url: string | null; error: string | null }[];
 };
 
-export async function postListing(listing_url: string): Promise<ListingResponse> {
+export async function postListing(listing_url: string, outpaint_enabled: boolean): Promise<ListingResponse> {
   const res = await fetch(`${BACKEND_URL}/api/listing`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ listing_url }),
+    body: JSON.stringify({ listing_url, outpaint_enabled }),
   });
   if (!res.ok) {
     const body = await res.text();
@@ -54,4 +54,26 @@ export async function pollStatus(video_id: string): Promise<PollResponse> {
     throw new Error(`Poll returned ${res.status}`);
   }
   return res.json() as Promise<PollResponse>;
+}
+
+export type RegenerateResponse = {
+  video_id: string;
+  decision: AgentDecision;
+};
+
+export async function postRegenerate(
+  listing_url: string,
+  listing: ScrapedListing,
+  decision: AgentDecision,
+): Promise<RegenerateResponse> {
+  const res = await fetch(`${BACKEND_URL}/api/regenerate`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ listing_url, listing, decision }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(body || `Backend returned ${res.status}`);
+  }
+  return res.json() as Promise<RegenerateResponse>;
 }

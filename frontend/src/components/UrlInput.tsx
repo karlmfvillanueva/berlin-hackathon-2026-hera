@@ -5,9 +5,11 @@ const FIXTURE_URL = "https://www.airbnb.com/rooms/kreuzberg-loft-demo";
 interface UrlInputProps {
   onSubmit: (url: string) => void;
   loading: boolean;
+  outpaintEnabled: boolean;
+  onOutpaintChange: (v: boolean) => void;
 }
 
-export function UrlInput({ onSubmit, loading }: UrlInputProps) {
+export function UrlInput({ onSubmit, loading, outpaintEnabled, onOutpaintChange }: UrlInputProps) {
   const [value, setValue] = useState(FIXTURE_URL);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -53,6 +55,16 @@ export function UrlInput({ onSubmit, loading }: UrlInputProps) {
           {loading ? "Loading..." : "Generate"}
         </button>
       </div>
+
+      <label className="flex items-center gap-2 text-[13px] font-normal text-[#555555] cursor-pointer">
+        <input
+          type="checkbox"
+          checked={outpaintEnabled}
+          onChange={(e) => onOutpaintChange(e.target.checked)}
+          className="w-4 h-4 cursor-pointer"
+        />
+        Outpaint photos to 9:16
+      </label>
 
       {validationError && (
         <p className="text-[13px] text-black">{validationError}</p>
