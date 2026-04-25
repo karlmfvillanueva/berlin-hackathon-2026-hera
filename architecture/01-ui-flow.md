@@ -19,7 +19,7 @@ Paste an Airbnb listing URL, get a 15-second 9:16 motion graphics video that sel
 ## Stack
 
 - **Frontend:** Vite + React + TypeScript, dev server on `:5173`. Plain `useState` + `useEffect`. No router (single screen). No state library.
-- **Backend:** FastAPI (Python, `uv`) on `:8000`. Holds `HERA_API_KEY` and `ANTHROPIC_HACKATHON_KEY`.
+- **Backend:** FastAPI (Python, `uv`) on `:8000`. Holds `HERA_API_KEY` and `GEMINI_API_KEY`.
 - **Frontend ↔ Backend:** Frontend reads `VITE_BACKEND_URL` and talks only to FastAPI. The Hera key never reaches the browser.
 - **Status updates:** HTTP polling of `GET /api/videos/{video_id}` every 5s. SSE is documented as an optional Phase 3 upgrade — polling is the baseline because Phase 1 already runs on it and the wait is short enough that streamed status frames don't change UX much.
 
@@ -53,7 +53,7 @@ idle ── submit URL ──▶ generating ── poll success ──▶ done
 
 The two-call pattern is the load-bearing UX choice and matches the live MVP backend:
 
-1. `POST /api/listing` returns instantly (Anthropic call, ~1–3s). Response includes the full `AgentDecision` (angle label, rationale, confidence, selected reference images, constructed Hera prompt). Render the **reasoning card the moment this returns**.
+1. `POST /api/listing` returns instantly (Gemini call, ~1–3s). Response includes the full `AgentDecision` (angle label, rationale, confidence, selected reference images, constructed Hera prompt). Render the **reasoning card the moment this returns**.
 2. Frontend then calls `POST /api/generate` with the decision. Backend submits to Hera and returns `{ video_id, decision }` (decision echoed for convenience).
 3. Frontend polls `GET /api/videos/{video_id}` every 5s. Hard cap 3 minutes; surface timeout error past that.
 4. Stop polling on `status === "success"` (transition to `done`) or `status === "failed"` (transition to `error`).

@@ -32,7 +32,7 @@ load_dotenv(dotenv_path="../.env")
 load_dotenv()
 
 HERA_API_KEY = os.getenv("HERA_API_KEY", "")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_HACKATHON_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 HERA_BASE_URL = "https://api.hera.video/v1"
 ENABLE_LIVE_SCRAPE = os.getenv("ENABLE_LIVE_SCRAPE", "false").lower() == "true"
 
@@ -46,6 +46,8 @@ ALLOWED_ORIGINS = [
 async def lifespan(_: FastAPI):
     if not HERA_API_KEY:
         log.warning("HERA_API_KEY is not set — /api/videos calls will fail")
+    if not GEMINI_API_KEY:
+        log.warning("GEMINI_API_KEY is not set — classifier will fail")
     app.state.http = httpx.AsyncClient(
         base_url=HERA_BASE_URL,
         headers={"x-api-key": HERA_API_KEY, "content-type": "application/json"},

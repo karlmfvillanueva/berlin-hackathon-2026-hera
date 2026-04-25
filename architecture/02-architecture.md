@@ -19,7 +19,7 @@ This document is the single source of truth for what exists, what's planned, and
 | Persistence | None (stateless) | Supabase Postgres | (unchanged) |
 | Listing source | Pre-captured JSON fixtures | Live Playwright scrape | Airbnb + Booking + VRBO |
 | Image processing | Pass through CDN URLs | Optional Nanobanana outpaint to 9:16 (toggle) | (unchanged) |
-| Agent | Claude Sonnet via Anthropic SDK | + beliefs from DB | (unchanged) |
+| Agent | Gemini 3.1 Pro via google-genai SDK | + beliefs from DB | (unchanged) |
 | Video render | Hera REST | (unchanged) | (unchanged) |
 | Status updates | HTTP polling 5s | (unchanged) | Optional SSE upgrade |
 
@@ -38,7 +38,7 @@ backend/
       __init__.py
       models.py              # Pydantic: Photo, ScrapedListing, AgentDecision, ...
       angles.py              # 6-angle taxonomy + prompt templates
-      classifier.py          # Anthropic SDK call → angle + rationale
+      classifier.py          # Gemini SDK call → angle + rationale
       image_scorer.py        # Deterministic scoring → top 5 reference URLs
       prompt_builder.py      # Fill template, return Hera prompt string
       orchestrator.py        # run(listing) → AgentDecision
@@ -67,7 +67,7 @@ The MVP exposes three application endpoints plus a Hera passthrough. Phase 2 and
 
 ### `POST /api/listing` — load and classify (Phase 1)
 
-Returns instantly (Anthropic call is the only blocking work, ~1–3s). The frontend uses this to paint the reasoning card before any rendering starts.
+Returns instantly (Gemini call is the only blocking work, ~1–3s). The frontend uses this to paint the reasoning card before any rendering starts.
 
 **Request:**
 ```json
@@ -91,7 +91,7 @@ Returns instantly (Anthropic call is the only blocking work, ~1–3s). The front
 
 **Errors:**
 - `404 fixture_not_found` (Phase 1) — listing URL has no fixture. Replaced in Phase 2 by `scrape_blocked` / `scrape_failed`.
-- `500 classifier_failed` — Anthropic call returned non-JSON or the schema didn't validate.
+- `500 classifier_failed` — Gemini call returned non-JSON or the schema didn't validate.
 
 ### `POST /api/generate` — submit to Hera (Phase 1)
 
@@ -165,7 +165,7 @@ client                       FastAPI                          Hera
   │                             │ ScrapedListing                 │
   │                             │                                │
   │                             │ orchestrator.run(listing)      │
-  │                             │   ├─ classifier (Claude)       │
+  │                             │   ├─ classifier (Gemini)       │
   │                             │   ├─ image_scorer              │
   │                             │   └─ prompt_builder            │
   │                             │ AgentDecision                  │
@@ -232,7 +232,7 @@ return ListingResponse
 Already specified in `01-ui-flow.md`. Repeating the parts that bind to this layer:
 
 - Vite + React + TS, dev `:5173`.
-- Reads `VITE_BACKEND_URL` from env. Never reads any Hera or Anthropic key.
+- Reads `VITE_BACKEND_URL` from env. Never reads any Hera or Gemini key.
 - Single screen, state machine. No router.
 - HTTP polling for status. SSE is a Phase 3 optional upgrade — not started.
 
@@ -316,9 +316,9 @@ Full specification in `03-agent-pipeline.md`. Summary for this document:
 - `ScrapedListing` (from fixture loader or scraper).
 - Phase 2: top 10 `agent_beliefs` rows ordered by confidence, fetched from Supabase. Phase 1 uses the same beliefs hardcoded into `angles.py`.
 
-**Steps (single Anthropic call with structured output):**
+**Steps (single Gemini call with structured output):**
 1. Score each photo against angle priority keywords using deterministic Python (`image_scorer.py`).
-2. Send listing summary + photo labels to Claude Sonnet via the Anthropic SDK. Receive `{ angle_id, confidence, rationale }` as JSON.
+2. Send listing summary + photo labels to Gemini 3.1 Pro via the google-genai SDK. Receive `{ angle_id, confidence, rationale }` as JSON.
 3. Fill the angle's prompt template with listing fields (`prompt_builder.py`).
 4. Return `AgentDecision` with the angle, rationale, top 5 image URLs (post-outpaint if enabled), and the assembled Hera prompt.
 
@@ -446,7 +446,7 @@ User pastes URL
 [FastAPI]
    ├─ fixture_loader → ScrapedListing
    ├─ image_scorer (deterministic) → top 5 URLs
-   ├─ classifier (Anthropic SDK) → angle + rationale
+   ├─ classifier (google-genai SDK) → angle + rationale
    └─ prompt_builder → AgentDecision
    │
    ▼
@@ -506,7 +506,7 @@ Local dev only. `make dev` starts both servers. No production deployment yet.
 ```
 # Backend
 HERA_API_KEY=hera_…
-ANTHROPIC_HACKATHON_KEY=sk-ant-…
+GEMINI_API_KEY=AIza…
 NANOBANANA_API_KEY=nb_…              # Phase 2
 SUPABASE_URL=https://….supabase.co   # Phase 2
 SUPABASE_SERVICE_KEY=eyJ…            # Phase 2 (server-only, service role)
@@ -540,8 +540,8 @@ Retry-with-backoff is explicitly **out of scope** until Phase 2 ships and we hav
 
 | Layer | Phase 1 | Phase 2 |
 |---|---|---|
-| Anthropic (classifier) | 1 call, ~1.5K tokens | ~$0.005 |
-| Anthropic (Phase 2 photo ranking, optional) | — | ~$0.02 |
+| Gemini (classifier) | 1 call, ~1.5K tokens | ~$0.005 |
+| Gemini (Phase 2 photo ranking, optional) | — | ~$0.02 |
 | Nanobanana outpaint (toggle on) | — | ~$0.10–0.25 for 5 photos |
 | Hera `POST /videos` upload | — | — |
 | Hera render | Credit-based | Credit-based |
