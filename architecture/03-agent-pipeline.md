@@ -184,7 +184,7 @@ The model returns:
 
 Use Gemini's `response_schema` (JSON mode). No regex parsing. Schema validation in Python via Pydantic; on validation failure, retry once at temperature 0.
 
-**Model selection:** `gemini-2.5-pro` via the google-genai SDK. 2.5-Pro is fast enough (~10–20s with reasoning enabled) for the synchronous request path and accurate enough for a single classification call. The Gemini 3.x preview models are a drop-in replacement once the project's API key has quota for them — only the model id needs to change.
+**Model selection:** `gemini-2.5-pro` on Vertex AI (ADC, no API key). 2.5-Pro is fast enough (~5–10s with reasoning enabled) for the synchronous request path and accurate enough for a single classification call. The Gemini 3.x preview models are a drop-in replacement once the GCP project gets allowlisted — set `GEMINI_CLASSIFIER_MODEL` in env, no code change.
 
 ### Step 3: Prompt building
 

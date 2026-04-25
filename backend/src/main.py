@@ -32,7 +32,8 @@ load_dotenv(dotenv_path="../.env")
 load_dotenv()
 
 HERA_API_KEY = os.getenv("HERA_API_KEY", "")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GCP_PROJECT = os.getenv("GCP_PROJECT", "")
+GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 HERA_BASE_URL = "https://api.hera.video/v1"
 ENABLE_LIVE_SCRAPE = os.getenv("ENABLE_LIVE_SCRAPE", "false").lower() == "true"
 
@@ -46,8 +47,10 @@ ALLOWED_ORIGINS = [
 async def lifespan(_: FastAPI):
     if not HERA_API_KEY:
         log.warning("HERA_API_KEY is not set — /api/videos calls will fail")
-    if not GEMINI_API_KEY:
-        log.warning("GEMINI_API_KEY is not set — classifier will fail")
+    if not GCP_PROJECT:
+        log.warning("GCP_PROJECT is not set — Gemini classifier + outpainter will fail")
+    else:
+        log.info("Vertex AI: project=%s location=%s", GCP_PROJECT, GCP_LOCATION)
     app.state.http = httpx.AsyncClient(
         base_url=HERA_BASE_URL,
         headers={"x-api-key": HERA_API_KEY, "content-type": "application/json"},
