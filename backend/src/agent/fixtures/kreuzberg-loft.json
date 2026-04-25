@@ -1,0 +1,56 @@
+{
+  "url": "https://www.airbnb.com/rooms/kreuzberg-loft-demo",
+  "title": "Sunlit loft in Kreuzberg with rooftop access.",
+  "location": "Berlin · Kreuzberg, near Görlitzer Park",
+  "bedrooms_sleeps": "2 BR · sleeps 4 · 1 bath",
+  "price_display": "€142",
+  "amenities": [
+    "Wifi",
+    "Dedicated workspace",
+    "Kitchen",
+    "Rooftop access",
+    "Washer",
+    "Free street parking",
+    "Air conditioning",
+    "Heating",
+    "Essentials",
+    "Coffee maker",
+    "Balcony",
+    "Natural light"
+  ],
+  "description": "Wake up to golden light flooding the exposed-brick living room of this industrial loft on one of Kreuzberg's quietest side streets. The open-plan space has soaring 3.5m ceilings, a well-equipped kitchen island, and a dedicated work corner with a standing desk and fiber broadband — everything you need to stay productive or completely switch off.\n\nHead up to the shared rooftop terrace on the fifth floor for sunset cocktails with a panoramic view across the canal to Neukölln. It's a five-minute stroll to the weekend market at Görlitzer Park and another five to the Landwehr Canal — the best cycling and walking route in the city.\n\nWe're proud of this neighbourhood and happy to share our list of favourite spots: the coffee roastery around the corner, the vinyl shop on Paul-Lincke-Ufer, the best döner in Kreuzberg (hint: it's not the famous one). You'll leave knowing the city like a local.",
+  "photos": [
+    {
+      "url": "https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e?w=1200&q=80",
+      "label": "Living room — exposed brick wall and high ceilings"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&q=80",
+      "label": "Rooftop terrace at golden hour with city panorama"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=1200&q=80",
+      "label": "Workspace by window — standing desk and natural light"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&q=80",
+      "label": "Open-plan kitchen with island and pendant lights"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=1200&q=80",
+      "label": "Master bedroom with loft window and morning light"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1600210492493-0946911123ea?w=1200&q=80",
+      "label": "Canal view from the balcony at dusk"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=1200&q=80",
+      "label": "Second bedroom with skylight and linen bedding"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=1200&q=80",
+      "label": "Morning coffee corner — espresso machine and street view"
+    }
+  ]
+}
