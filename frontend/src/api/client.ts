@@ -1,6 +1,21 @@
 import type { ScrapedListing, AgentDecision, JobStatus } from "../types";
+import { supabase } from "../lib/supabase";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000";
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000";
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
+
+export async function authedFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const headers = {
+    ...(init.headers as Record<string, string> | undefined),
+    ...(await authHeaders()),
+  };
+  return fetch(input, { ...init, headers });
+}
 
 export type ListingResponse = {
   listing: ScrapedListing;
@@ -19,7 +34,7 @@ export type PollResponse = {
 };
 
 export async function postListing(listing_url: string, outpaint_enabled: boolean): Promise<ListingResponse> {
-  const res = await fetch(`${BACKEND_URL}/api/listing`, {
+  const res = await authedFetch(`${BACKEND_URL}/api/listing`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ listing_url, outpaint_enabled }),
@@ -36,7 +51,7 @@ export async function postGenerate(
   listing: ScrapedListing,
   decision: AgentDecision,
 ): Promise<GenerateResponse> {
-  const res = await fetch(`${BACKEND_URL}/api/generate`, {
+  const res = await authedFetch(`${BACKEND_URL}/api/generate`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ listing_url, listing, decision }),
@@ -49,7 +64,7 @@ export async function postGenerate(
 }
 
 export async function pollStatus(video_id: string): Promise<PollResponse> {
-  const res = await fetch(`${BACKEND_URL}/api/videos/${video_id}`);
+  const res = await authedFetch(`${BACKEND_URL}/api/videos/${video_id}`);
   if (!res.ok) {
     throw new Error(`Poll returned ${res.status}`);
   }
@@ -66,7 +81,7 @@ export async function postRegenerate(
   listing: ScrapedListing,
   decision: AgentDecision,
 ): Promise<RegenerateResponse> {
-  const res = await fetch(`${BACKEND_URL}/api/regenerate`, {
+  const res = await authedFetch(`${BACKEND_URL}/api/regenerate`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ listing_url, listing, decision }),

@@ -70,6 +70,17 @@ export type AgentDecision = {
   visual_system?: VisualSystem;
   photo_analysis?: PhotoAnalysis;
   duration_seconds?: number;
+  // Editorial Judge metadata — set when Final Assembly's multi-sample path
+  // ran 3 candidates and a Judge agent picked the strongest brief.
+  judge_score?: number | null;
+  judge_rationale?: string | null;
+  judge_scores_per_brief?: JudgeBriefScore[] | null;
+};
+
+export type JudgeBriefScore = {
+  index: number;
+  aggregate?: number;
+  weakness?: string;
 };
 
 export type JobStatus = "in-progress" | "success" | "failed";

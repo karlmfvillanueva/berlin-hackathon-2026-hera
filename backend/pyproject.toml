@@ -12,6 +12,11 @@ dependencies = [
     "playwright>=1.49",
     "google-genai>=0.8",
     "supabase>=2.9",
+    "pyjwt[crypto]>=2.9",
+    "slowapi>=0.1.9",
+    "google-auth-oauthlib>=1.2",
+    "google-api-python-client>=2.140",
+    "itsdangerous>=2.2",
 ]
 
 [tool.ruff]
