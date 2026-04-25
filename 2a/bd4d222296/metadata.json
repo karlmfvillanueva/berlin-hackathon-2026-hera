@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.5.6",
+  "checkpoint_id": "2abd4d222296",
+  "strategy": "manual-commit",
+  "branch": "feat/architecture-align-to-mvp",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "architecture/01-ui-flow.md",
+    "architecture/02-architecture.md",
+    "architecture/03-agent-pipeline.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2a/bd4d222296/0/metadata.json",
+      "transcript": "/2a/bd4d222296/0/full.jsonl",
+      "content_hash": "/2a/bd4d222296/0/content_hash.txt",
+      "prompt": "/2a/bd4d222296/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 235452,
+    "cache_read_tokens": 1758040,
+    "output_tokens": 33253,
+    "api_call_count": 19
+  }
+}

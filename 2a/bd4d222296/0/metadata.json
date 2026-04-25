@@ -1,0 +1,55 @@
+{
+  "cli_version": "0.5.6",
+  "checkpoint_id": "2abd4d222296",
+  "session_id": "818a4651-d6aa-46c6-a427-30f977d05422",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-25T14:54:06.205148Z",
+  "branch": "feat/architecture-align-to-mvp",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "architecture/01-ui-flow.md",
+    "architecture/02-architecture.md",
+    "architecture/03-agent-pipeline.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-7[1m]",
+  "turn_id": "69868247ab13",
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 235452,
+    "cache_read_tokens": 1758040,
+    "output_tokens": 33253,
+    "api_call_count": 19
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-25T14:54:06.194785Z",
+    "agent_lines": 858,
+    "agent_removed": 904,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 858,
+    "total_lines_changed": 1762,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 858,
+      "agent_lines_removed": 904
+    }
+  ]
+}

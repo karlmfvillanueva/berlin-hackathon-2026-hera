@@ -1,0 +1,13 @@
+'/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/.planning' this is the mvp docs. '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/architecture' this is the post mvp docs. we already built the mvp with '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/.planning'. I want you to adapt '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/architecture' so taht it follows the stack of planning for now. create a new feature branch and edit '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/architecture'. Unless you have a very good reason to follow '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/architecture' stack instead of the already built mvp with '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/.planning', let me know
+
+---
+
+1 = ok so just keep mvp for now, we will edit this later as prompts and flows will be improved.
+
+2 = we want this outpainting, because it helps the images do better. But for this post mvp feature, add a toggle on page 1 of the search bar, so we can toggle this feature on or off
+
+3 = let's stick to airbnb for now, if it works for airbnb, we can make it work for other sites later
+
+4 = yeah let's keep it phase 2
+
+5 = yes agree
