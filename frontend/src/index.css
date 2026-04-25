@@ -172,3 +172,8 @@ input[type="checkbox"] {
   line-height: 1.45;
   letter-spacing: -0.005em;
 }
+
+/* Lucide line-weight per spec §9 — Quiet Luxury wants 1.5px strokes */
+svg.lucide {
+  stroke-width: 1.5;
+}
