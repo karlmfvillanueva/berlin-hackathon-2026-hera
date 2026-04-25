@@ -27,6 +27,15 @@ class AgentDecision(BaseModel):
     background: str  # 1 sentence — image composition / motion graphics approach
     selected_image_urls: list[str]  # top 5 ranked, max 5
     hera_prompt: str  # final prompt sent to Hera
+    # Phase 2 additive
+    outpaint_enabled: bool = False
+    beliefs_applied: list[str] = []
+
+
+class Belief(BaseModel):
+    rule_key: str  # e.g. "hook_with_hero_shot"
+    rule_text: str  # human-readable rule the agent applies
+    confidence: float  # 0.0–1.0
 
 
 class ListingResponse(BaseModel):
@@ -41,5 +50,16 @@ class GenerateRequest(BaseModel):
 
 
 class GenerateResponse(BaseModel):
+    video_id: str
+    decision: AgentDecision
+
+
+class RegenerateRequest(BaseModel):
+    listing_url: str
+    listing: ScrapedListing
+    decision: AgentDecision
+
+
+class RegenerateResponse(BaseModel):
     video_id: str
     decision: AgentDecision
