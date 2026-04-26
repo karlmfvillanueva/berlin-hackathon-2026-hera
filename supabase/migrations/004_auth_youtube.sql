@@ -12,13 +12,20 @@ create table if not exists profiles (
   created_at timestamptz default now()
 );
 
-create or replace function handle_new_user() returns trigger as $$
+-- SECURITY DEFINER trigger fires from auth.users with search_path = auth, so
+-- both the explicit `public.` qualifier AND `set search_path = public` are
+-- required — without them every new-user insert dies with relation-not-found.
+create or replace function public.handle_new_user() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
-  insert into profiles (id, display_name)
+  insert into public.profiles (id, display_name)
   values (new.id, coalesce(new.raw_user_meta_data->>'name', new.email));
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
