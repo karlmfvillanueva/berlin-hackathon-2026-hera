@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 
+import { finalizeVideo } from "@/api/dashboard"
 import { useMe } from "@/auth/useMe"
 import { DemoListingPicker } from "@/components/DemoListingPicker"
 import { ErrorState } from "@/components/ErrorState"
@@ -41,6 +42,7 @@ export function AgentApp() {
   // input stays hidden. The URL input flashes in for team members once /api/me
   // resolves; that's the right tradeoff vs. a hidden picker for everyone else.
   const isTeam = me?.is_team_member ?? false
+  const navigate = useNavigate()
   // Demo mode is the default for everyone. Team members can toggle it off to
   // get the free-text URL input back; non-team users never see the toggle, so
   // their state is effectively pinned to ON.
@@ -269,6 +271,16 @@ export function AgentApp() {
             videoId,
             internalVideoId,
           })
+          // Persist + jump to the library entry so reloads don't lose the
+          // video and the dashboard can replay it. Best-effort — the in-memory
+          // done screen still renders correctly even if either step fails.
+          if (internalVideoId && fileUrl) {
+            void finalizeVideo(internalVideoId, fileUrl).then(() => {
+              navigate(`/dashboard/v/${internalVideoId}?just_made=1`, {
+                replace: false,
+              })
+            })
+          }
         } else if (data.status === "failed") {
           clearPolling()
           setState({

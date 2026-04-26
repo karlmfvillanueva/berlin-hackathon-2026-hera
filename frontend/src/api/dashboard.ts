@@ -1,4 +1,5 @@
 import { authedFetch, BACKEND_URL } from "./client"
+import type { AgentDecision, ScrapedListing } from "../types"
 
 export type DashboardVideo = {
   id: string
@@ -10,6 +11,28 @@ export type DashboardVideo = {
   is_demo_seed: boolean
   latest_view_count: number | null
   latest_like_count: number | null
+  video_url: string | null
+  listing_data: ScrapedListing | null
+  agent_decision: AgentDecision | null
+}
+
+export async function finalizeVideo(
+  internalVideoId: string,
+  fileUrl: string,
+): Promise<void> {
+  const res = await authedFetch(
+    `${BACKEND_URL}/api/videos/${internalVideoId}/finalize`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ file_url: fileUrl }),
+    },
+  )
+  if (!res.ok) {
+    // Persisted-state save is a nice-to-have; never throw further up the chain.
+    // eslint-disable-next-line no-console
+    console.warn("finalizeVideo failed", res.status)
+  }
 }
 
 export type DashboardAggregate = {

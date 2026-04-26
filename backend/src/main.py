@@ -581,6 +581,39 @@ def _looked_up_video_row(supabase: Any, internal_video_id: str, user_id: str) ->
     return rows[0]
 
 
+class FinalizeRequest(BaseModel):
+    file_url: str
+
+
+@app.post("/api/videos/{internal_video_id}/finalize")
+async def finalize_video(
+    internal_video_id: str,
+    body: FinalizeRequest,
+    user: CurrentUser,
+) -> dict[str, bool]:
+    """Persist the rendered Hera file URL to the videos row so the dashboard
+    library + VideoDetail page can replay the MP4 across reloads. Frontend
+    calls this once Hera's poll flips to success."""
+    supabase = get_supabase_client()
+    if supabase is None:
+        return {"ok": False}
+    res = (
+        supabase.table("videos")
+        .select("user_id")
+        .eq("id", internal_video_id)
+        .limit(1)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail={"error": "video_not_found"})
+    if res.data[0].get("user_id") != user.user_id:
+        raise HTTPException(status_code=403, detail={"error": "not_owner"})
+    supabase.table("videos").update({"video_url": body.file_url}).eq(
+        "id", internal_video_id
+    ).execute()
+    return {"ok": True}
+
+
 @app.post("/api/videos/{internal_video_id}/publish", response_model=PublishResponse)
 @limiter.limit(LIMIT_PUBLISH)
 async def publish_to_youtube(
@@ -766,6 +799,11 @@ class DashboardVideo(BaseModel):
     is_demo_seed: bool = False
     latest_view_count: int | None = None
     latest_like_count: int | None = None
+    # Full payload so VideoDetail can render the player + rationale without a
+    # second round-trip. Optional because legacy/empty rows may have nulls.
+    video_url: str | None = None
+    listing_data: dict[str, Any] | None = None
+    agent_decision: dict[str, Any] | None = None
 
 
 class DashboardAggregate(BaseModel):
@@ -858,6 +896,9 @@ async def get_dashboard(
                 latest_like_count=snap.get("like_count")
                 if isinstance(snap.get("like_count"), int)
                 else None,
+                video_url=row.get("video_url"),
+                listing_data=listing_data or None,
+                agent_decision=decision or None,
             )
         )
 
