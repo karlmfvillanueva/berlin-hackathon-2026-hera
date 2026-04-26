@@ -163,9 +163,16 @@ export function AgentApp() {
         internalVideoId: internal_video_id,
       })
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to start generation."
+      // Backend returns 502 + hera_unreachable when Hera's API is overloaded
+      // (we already retry 3× with backoff server-side; if we still got here,
+      // Hera is genuinely down). Show a kind message instead of a raw 502.
+      const heraDown = message.includes("hera_unreachable") || message.includes("502")
       setState({
         screen: "error",
-        message: err instanceof Error ? err.message : "Failed to start generation.",
+        message: heraDown
+          ? "Hera's video service is busy right now. Give it a minute and try again."
+          : message,
       })
     }
   }
