@@ -8,8 +8,6 @@
 
 ### ▶ [**Try it live — argus.up.railway.app**](https://berlin-hackathon-2026-production.up.railway.app)
 
-*Paste any Airbnb URL. The agent does the rest. No signup needed for the demo.*
-
 [![Live Demo](https://img.shields.io/badge/▶_try_it_live-argus.up.railway.app-22c55e?style=for-the-badge)](https://berlin-hackathon-2026-production.up.railway.app)
 
 [![Hackathon](https://img.shields.io/badge/Berlin_Tech_Europe-Hackathon_2026-F94B12?style=flat-square)](https://www.notion.so/karlvillanueva/Berlin-Hackathon-2026-34d942178bfd8059b2ecc0b41790cf44)
