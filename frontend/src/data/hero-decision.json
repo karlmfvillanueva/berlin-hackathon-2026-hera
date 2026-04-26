@@ -1,0 +1,415 @@
+{
+  "vibes": "city",
+  "hook": "Wake up in the neighborhood that inspired generations of artists.",
+  "pacing": "Medium-fast, rhythmic cuts (~1.5s per shot) with occasional 'breather' shots on key views (~3s)",
+  "angle": "A clean, safe, and practical hotel room with two separate beds to use as a launchpad for exploring the city.",
+  "background": "Visually prove this is a stylish, modern hotel in Paris that uniquely offers a twin-bed room, perfectly solving the core problem for friends traveling together.",
+  "selected_image_urls": [
+    "https://a0.muscache.com/im/pictures/prohost-api/Hosting-1092657605119082808/original/c6940503-c48e-47e5-8328-7c3b96e2d370.jpeg",
+    "https://a0.muscache.com/im/pictures/prohost-api/Hosting-1092657605119082808/original/646448bd-78e8-46df-8523-65620b38fde6.jpeg"
+  ],
+  "hera_prompt": "Create a 20 second vertical motion graphics video (9:16, 1080x1920).\nOptimised for Instagram Reels and TikTok. Sound on.\n\nTARGET GUEST:\nThe Platonic Paris Pair: Two friends, siblings, or colleagues on a stylish, practical city-break, who want to explore Paris from a cool base without the awkwardness of sharing a bed.\n\nREJECTED PERSONAS:\n- Couples, honeymooners, luxury travelers, families, and anyone looking for a romantic or spacious stay.\n\nANGLE:\nThe smart, stylish solution for your Paris trip. We solve the biggest problem for friends traveling together: finding a cool room without having to share a bed.\n\nEMOTIONAL PROMISE:\nFeel clever and relieved. You've found the perfect, no-compromise home base for your Paris adventure.\n\nHOOK:\nImmediately show the two separate beds, solving the viewer's core logistical problem and stopping their scroll.\n\nOPENING HOOK LINE:\nParis with your bestie?\n\n---\n\nVISUAL SYSTEM\n\nBackground color(s): #FDF8E1 (Sunlit Haussmann Cream)\nTypography style (serif/sans usage): Clean, geometric sans-serif, all-caps for labels (e.g., Montserrat or Poppins).\nAccent color: #FFC940 (Marigold Accent)\nPacing (fast / calm / cinematic): Fast cuts, modern editorial energy.\nTransitions: Energetic whip pans and quick, clean cuts.\nMusic style: Upbeat French indie pop, ~125 BPM, with a sense of optimistic discovery.\n\n---\n\nPHOTO STRATEGY\n\nPhoto 1 (hero): 7 — HOOK: The twin bed room is the entire reason for booking. Show it first.\nPhoto 2: 1 — CONTEXT: The stylish lobby proves this is a legitimate, design-forward hotel.\nPhoto 3: 4 — VIBE: The lobby art detail reinforces the 'Graphik' hotel name and artistic location.\nPhoto 4: 8 — PAYOFF: The witty headboard detail is a perfect, personality-filled confirmation of the 'friends trip' vibe.\n\n---\n\nSCENE PLAN (MANDATORY)\n\nSCENE 1 — HOOK (0.0–3.0s)\nVisual: Photo 7 (twin beds). Fast push-in.\nText: Paris with your bestie? (line 1) Don't share a bed. (line 2)\n\nSCENE 2 — LOCATION / CONTEXT (3.0–6.0s)\nVisual: Photo 1 (lobby). Pan right to left.\nText: Stay in a design hotel...\n\nSCENE 3 — CORE EXPERIENCE (6.0–11.0s)\nVisual: Photo 4 (lobby art detail). Slow zoom in.\nText: ...in the heart of artistic Montparnasse.\n\nSCENE 4 — FEATURE PAYOFF (11.0–15.0s)\nVisual: Photo 8 (headboard detail). Quick cut, hold static. A circle animates around the 'Not Now / Now' text.\nText: With details made for you.\n\nSCENE 5 — SOCIAL PROOF / CLIMAX (15.0–18.0s)\nVisual: Photo 1 (lobby) with a semi-transparent color overlay.\nText: ★ 4.93/5 (28 Reviews)\n\nSCENE 6 — CTA (18.0–20.0s)\nVisual: Solid #0055A4 (Parisian Cobalt) background.\nText: Graphik Montparnasse\nBook your Paris trip.\n\n---\n\nWHAT TO PUSH\n\n- The twin beds. This is the #1 conversion driver.\n- The stylish, modern, 'Graphik' hotel design.\n- The desirable Montparnasse location.\n- The high rating as the only available social proof.\n\n---\n\nWHAT TO HIDE\n\n- All photos of double-bed rooms (Indices 2, 3, 5). They are misleading and will attract the wrong guest.\n- The word 'Standard'. We sell the experience, not the category.\n- Any mention of basic amenities like WiFi or A/C. They are expected, not selling points.\n- The fact that we have no review quotes. We use the rating instead.\n\n---\n\nCONVERSION PSYCHOLOGY\n\nThis video converts by targeting a hyper-specific, underserved travel niche: platonic pairs. The hook immediately solves their primary logistical pain point (bed sharing), creating instant relief and interest. By rejecting the more 'romantic' but misleading photos, we build trust and qualify the lead within 3 seconds. The video then layers on value: it's not just a practical room, it's in a stylish design hotel (proven by lobby shots) in a culturally rich neighborhood (Montparnasse). The guest books feeling smart for having found the perfect, stylish, and practical solution that their travel companion will also love.",
+  "outpaint_enabled": false,
+  "beliefs_applied": [
+    "cta_at_end",
+    "hook_with_hero_shot",
+    "minimal_palette_for_urban",
+    "fast_cuts_for_amenities",
+    "override:lang=en,tone=urban,emphasis=0,hook=auto"
+  ],
+  "icp": {
+    "best_icp": {
+      "persona": "First-time city tourist",
+      "fit_score": 0.95,
+      "why_it_wins": "The listing is explicitly a 'Standard twin room' with two single beds, a private bathroom, and key amenities like A/C and WiFi. This is the perfect, no-fuss base for two non-couple travelers (friends, siblings, parent-child) whose primary goal is exploring the city, not spending time in the room.",
+      "booking_trigger": "Seeing the two separate beds, confirming it's a practical and comfortable setup for a platonic travel pair, removing the awkwardness of sharing a bed.",
+      "emotional_driver": "Efficiency and security. The guest feels smart for finding a clean, safe, and practical base for their city exploration."
+    },
+    "secondary_personas": [
+      {
+        "persona": "Budget-smart traveler",
+        "fit_score": 0.85,
+        "why_it_still_works": "For two people traveling together, a twin room is the most cost-effective way to get a private room with a private bathroom. This setup offers better value and comfort than a hostel, appealing to those prioritizing practicality and good value over luxury."
+      },
+      {
+        "persona": "Friend group celebration",
+        "fit_score": 0.75,
+        "why_it_still_works": "This is the ideal room for a pair of friends on a city trip. The description explicitly mentions 'friends', and the twin beds are the key feature that makes this a comfortable choice for a social, non-romantic getaway."
+      }
+    ],
+    "rejected_personas": [
+      {
+        "persona": "Couples weekend break",
+        "why_it_fails": "The property has two single beds ('Zweibettzimmer'), which is the opposite of the intimate, romantic setting a couple typically seeks. This is a deal-breaker."
+      },
+      {
+        "persona": "Luxury experience seeker",
+        "why_it_fails": "The room is explicitly labeled 'Standard'. The photos show a clean, modern but generic hotel room, not a premium or exclusive space."
+      },
+      {
+        "persona": "Digital nomad",
+        "why_it_fails": "This is a hotel room with no kitchen or living space, making it unsuitable for the long-term, work-live lifestyle of a digital nomad."
+      },
+      {
+        "persona": "Party group",
+        "why_it_fails": "This is a small, standard hotel room for two people. It is not a venue for a party."
+      },
+      {
+        "persona": "Family visiting adult child",
+        "why_it_fails": "While technically possible for two parents, the impersonal, modern hotel aesthetic lacks the warm, 'home away from home' feeling this persona usually looks for. It's a functional but not an emotional fit."
+      },
+      {
+        "persona": "Solo traveler",
+        "why_it_fails": "A solo traveler would be overpaying for a second bed they do not need. They would likely seek a cheaper single room."
+      }
+    ],
+    "conversion_summary": {
+      "what_guest_is_really_booking": "A clean, safe, and practical hotel room with two separate beds to use as a launchpad for exploring the city.",
+      "what_they_do_not_care_about": "Luxury amenities, a kitchen, a large living space, or a romantic atmosphere. The room is purely functional.",
+      "why_this_listing_converts_for_this_icp": "It solves the specific, practical problem for two people traveling together who are not a couple: how to share a room comfortably and affordably. The twin beds are the feature, not a bug."
+    }
+  },
+  "location_enrichment": {
+    "location_summary": {
+      "headline": "Stay in the heart of Paris's iconic artistic and intellectual Montparnasse district.",
+      "guest_trip_payoff": "Guests are immediately immersed in a classic Parisian atmosphere, with the neighborhood's famous cafes and history right outside their door, reducing travel time to experience the 'real' Paris.",
+      "differentiator_vs_generic_stays": "Instead of a random Parisian location, this stay offers a specific identity, placing guests directly within the storied Left Bank neighborhood known for its artistic heritage."
+    },
+    "landmark_proximity": [
+      "Situated in the Montparnasse district, historically the hub for artists like Picasso and Modigliani.",
+      "The area is home to legendary brasseries and cafes, allowing guests to easily partake in this iconic Parisian experience.",
+      "The Montparnasse Tower, offering panoramic views of Paris, is a defining feature of the neighborhood.",
+      "Proximity to Gare Montparnasse (inferred by neighborhood) provides a major travel hub for train connections across France."
+    ],
+    "walkability_value": {
+      "daily_rhythm_without_car": "Guests can live a car-free Parisian life, walking to bakeries for morning pastries, exploring local galleries in the afternoon, and finding a classic bistro for dinner.",
+      "planning_friction_removed": "Being in a vibrant, self-contained neighborhood means less time spent on the Metro and more time experiencing the city. Spontaneous discoveries of shops and cafes become part of the itinerary.",
+      "concrete_examples": [
+        "Step out for a morning espresso at a sidewalk cafe.",
+        "Enjoy an evening stroll to a nearby cinema or theatre.",
+        "Discover local boutiques and bookshops without needing a map.",
+        "Walk to a classic brasserie for dinner instead of coordinating transport."
+      ]
+    },
+    "neighborhood_identity": {
+      "character_in_guest_words": "It feels intellectual and authentically Parisian, a place with deep artistic roots and a lively, sophisticated energy.",
+      "who_thrives_here": "Culturally curious travelers, couples on a romantic getaway, and anyone who appreciates art, history, and literature.",
+      "social_energy": "A dynamic blend of bustling Parisian avenues and quieter, charming side streets filled with galleries, independent theatres, and historic cafes."
+    },
+    "best_trip_occasions": [
+      "A first-time Paris trip focused on cultural immersion.",
+      "An art and history-themed vacation.",
+      "A romantic city break for couples who love to wander.",
+      "A convenient base for business travelers using the Gare Montparnasse train station."
+    ],
+    "friction_reducers": [
+      "The hotel-style nature of the listing ('Graphik Montparnasse') implies a reception desk, which can simplify check-in, luggage storage, and local recommendations.",
+      "Being in a major district ensures easy access to taxis, ride-sharing, and public transport, removing uncertainty about getting around.",
+      "The density of restaurants and shops means essentials and meals are always available nearby, perfect for late arrivals or jet-lagged guests."
+    ],
+    "location_risks": [
+      "The listing is for a room in a hotel-like building, not a private residential apartment, which may lack a 'live like a local' kitchen or living space.",
+      "As a central and lively Parisian district, guests should expect a constant level of urban ambient noise.",
+      "The exact location and distance to the nearest Metro stop are not specified in the listing, requiring guests to research this independently."
+    ],
+    "creative_translation": {
+      "on_screen_hook_ideas": [
+        "Don't just visit Paris. Live in Montparnasse.",
+        "Your trip's home base: the heart of Paris's Left Bank.",
+        "This is your neighborhood for the week."
+      ],
+      "b_roll_or_map_direction": "Use stock footage of classic Parisian cafe terraces, artists sketching, and the exterior of a bustling brasserie. Animate a simple map of Paris with the 'Montparnasse' area highlighted, avoiding a specific pin.",
+      "emotional_carrier_line": "Wake up in the neighborhood that inspired generations of artists."
+    }
+  },
+  "reviews_evaluation": {
+    "review_summary": {
+      "overall_sentiment": "Positive based on rating, but no review text was provided in the scrape.",
+      "review_count_used": 0,
+      "most_repeated_positive_theme": "N/A - No review text available",
+      "most_repeated_negative_theme": "N/A - No review text available"
+    },
+    "positive_patterns": [],
+    "negative_patterns": [],
+    "best_video_quotes": [],
+    "claims_validation": [
+      {
+        "claim": "zwei komfortable Einzelbetten",
+        "source": "host_claim_only",
+        "allowed_in_video": false,
+        "notes": "The existence of two single beds is a fact, but 'komfortable' (comfortable) is a subjective host claim not backed by guest reviews."
+      },
+      {
+        "claim": "privates Badezimmer mit Dusche",
+        "source": "listing_fact",
+        "allowed_in_video": true,
+        "notes": "This is a factual claim about the room's amenities, mentioned in the host description."
+      },
+      {
+        "claim": "perfekten Rahmen für Entspannung",
+        "source": "host_claim_only",
+        "allowed_in_video": false,
+        "notes": "This is subjective marketing language ('perfect setting for relaxation') from the host description, not a guest experience."
+      },
+      {
+        "claim": "Klimaanlage",
+        "source": "listing_fact",
+        "allowed_in_video": true,
+        "notes": "Claimed as an amenity in the host description. Verifiable and usable."
+      },
+      {
+        "claim": "kostenloses WLAN",
+        "source": "listing_fact",
+        "allowed_in_video": true,
+        "notes": "Claimed as an amenity in the host description. Verifiable and usable."
+      },
+      {
+        "claim": "einladenden Wahl für Freunde oder Kollegen",
+        "source": "host_claim_only",
+        "allowed_in_video": false,
+        "notes": "This is a subjective positioning statement ('welcoming choice for friends or colleagues') from the host, not a guest quote."
+      }
+    ],
+    "quotes_to_avoid": [],
+    "creative_implications": {
+      "what_reviews_prove": [
+        "Nothing. There is no guest review text to provide social proof."
+      ],
+      "what_to_emphasize": [
+        "The modern, graphic design of the hotel/room.",
+        "The twin bed setup, which is ideal for friends or colleagues traveling together.",
+        "Key amenities like the private bathroom, air conditioning, and Wi-Fi.",
+        "The Montparnasse location (mentioned in the title)."
+      ],
+      "what_to_hide_or_avoid": [
+        "Avoid making any claims about guest feelings or experiences (e.g., 'relaxing', 'perfect', 'comfortable') as there is no social proof.",
+        "Do not use text overlays that look like guest quotes."
+      ],
+      "strongest_review_backed_angle": "N/A - No reviews available. The strongest angle is to visually showcase the property as a stylish and practical choice for two people (friends/colleagues) in Montparnasse, focusing on the clean design and essential amenities."
+    }
+  },
+  "visual_system": {
+    "inferred_setting": "city",
+    "primary_background": "#FDF8E1 / Sunlit Haussmann Cream",
+    "cta_card_only": "#0055A4 / Parisian Cobalt",
+    "primary_type": "#2C3E50 / Charcoal Slate",
+    "accent": "#FFC940 / Marigold Accent",
+    "font_review_quotes": "Elegant, light-weight italic serif (e.g., Garamond Italic)",
+    "font_labels_stats_ctas": "Clean, geometric sans-serif, all-caps for labels (e.g., Montserrat or Poppins)",
+    "pacing": "Medium-fast, rhythmic cuts (~1.5s per shot) with occasional 'breather' shots on key views (~3s)",
+    "transitions": "Energetic whip pans and quick, clean J-cuts that link exterior street sounds to interior calm",
+    "music": "Upbeat French indie pop, ~125 BPM, with acoustic guitar, a walking bassline, and a sense of optimistic discovery"
+  },
+  "photo_analysis": {
+    "analysis_summary": {
+      "one_line_strategy": "Visually prove this is a stylish, modern hotel in Paris that uniquely offers a twin-bed room, perfectly solving the core problem for friends traveling together.",
+      "icp_visual_hypothesis": "The ICP (platonic travel pair) sees a trendy, artistic hotel and is immediately relieved and excited to see the clean, non-bunk-bed twin room that makes sharing a space easy and comfortable.",
+      "biggest_visual_risk": "The gallery is dominated by photos of double-bed rooms (Indices 2, 3, 5, 6, 10), which are actively misleading for the target ICP. Using them would attract the wrong audience (couples) and repel the correct one (friends).",
+      "gallery_cohesion_score": 0.4
+    },
+    "per_photo_scores": [
+      {
+        "index": 1,
+        "hook_stopping_power": 0.8,
+        "composition_clarity": 0.9,
+        "lighting_truthfulness": 0.9,
+        "icp_alignment": 0.8,
+        "review_consistency": 1.0,
+        "conversion_role_if_selected": "location_context",
+        "honesty_risk": "low",
+        "verdict": "Keep. This lobby shot establishes a modern, design-forward, and safe hotel environment, which is crucial context for the room."
+      },
+      {
+        "index": 2,
+        "hook_stopping_power": 0.9,
+        "composition_clarity": 0.8,
+        "lighting_truthfulness": 0.9,
+        "icp_alignment": 0.1,
+        "review_consistency": 1.0,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "high",
+        "verdict": "Reject. Despite its strong visual appeal, the double bed is a deal-breaker and actively misleads the target ICP of platonic travelers."
+      },
+      {
+        "index": 3,
+        "hook_stopping_power": 0.7,
+        "composition_clarity": 0.7,
+        "lighting_truthfulness": 0.8,
+        "icp_alignment": 0.1,
+        "review_consistency": 1.0,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "high",
+        "verdict": "Reject. This is a weaker composition of the wrong room type (double bed), making it doubly useless for the campaign."
+      },
+      {
+        "index": 4,
+        "hook_stopping_power": 0.6,
+        "composition_clarity": 0.8,
+        "lighting_truthfulness": 0.9,
+        "icp_alignment": 0.7,
+        "review_consistency": 1.0,
+        "conversion_role_if_selected": "vibe_atmosphere",
+        "honesty_risk": "low",
+        "verdict": "Keep. A good detail shot of the lobby's artistic vibe, reinforcing the 'cool hotel' context without being redundant."
+      },
+      {
+        "index": 5,
+        "hook_stopping_power": 0.7,
+        "composition_clarity": 0.7,
+        "lighting_truthfulness": 0.8,
+        "icp_alignment": 0.1,
+        "review_consistency": 1.0,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "high",
+        "verdict": "Reject. Another visually interesting but functionally incorrect room, showing a double bed that will cause mis-clicks."
+      },
+      {
+        "index": 6,
+        "hook_stopping_power": 0.6,
+        "composition_clarity": 0.6,
+        "lighting_truthfulness": 0.8,
+        "icp_alignment": 0.1,
+        "review_consistency": 1.0,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "high",
+        "verdict": "Reject. A redundant, less compelling angle of the wrong (double bed) room."
+      },
+      {
+        "index": 7,
+        "hook_stopping_power": 0.9,
+        "composition_clarity": 0.9,
+        "lighting_truthfulness": 0.9,
+        "icp_alignment": 1.0,
+        "review_consistency": 1.0,
+        "conversion_role_if_selected": "hero_hook",
+        "honesty_risk": "low",
+        "verdict": "Keep. This is the single most important photo; it perfectly shows the twin bed solution for the target ICP and must be the hero."
+      },
+      {
+        "index": 8,
+        "hook_stopping_power": 0.8,
+        "composition_clarity": 0.8,
+        "lighting_truthfulness": 0.9,
+        "icp_alignment": 1.0,
+        "review_consistency": 1.0,
+        "conversion_role_if_selected": "detail_payoff",
+        "honesty_risk": "low",
+        "verdict": "Keep. The witty headboard detail is the perfect 'payoff' shot, reinforcing the 'friends trip' vibe with clever design."
+      },
+      {
+        "index": 9,
+        "hook_stopping_power": 0.8,
+        "composition_clarity": 0.9,
+        "lighting_truthfulness": 0.9,
+        "icp_alignment": 0.8,
+        "review_consistency": 1.0,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "low",
+        "verdict": "Reject. This is a duplicate of index 1 and offers no new information."
+      },
+      {
+        "index": 10,
+        "hook_stopping_power": 0.9,
+        "composition_clarity": 0.8,
+        "lighting_truthfulness": 0.9,
+        "icp_alignment": 0.1,
+        "review_consistency": 1.0,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "high",
+        "verdict": "Reject. This is a duplicate of index 2, showing the wrong bed type for the target audience."
+      }
+    ],
+    "rejected_gallery_strengths": [
+      {
+        "index": 2,
+        "reason": "Shows a double bed, which is the opposite of the ICP's primary booking trigger (two separate beds).",
+        "what_it_would_wrongly_signal": "This is a romantic stay for a couple, which would attract the wrong user and repel the target friends/colleagues."
+      },
+      {
+        "index": 3,
+        "reason": "Redundant and less appealing angle of the incorrect double-bed room.",
+        "what_it_would_wrongly_signal": "A confusing and misleading message about the room's primary function for the target ICP."
+      },
+      {
+        "index": 5,
+        "reason": "Shows a different style of room, but still with the incorrect double bed configuration.",
+        "what_it_would_wrongly_signal": "That the hotel only offers rooms for couples, causing the target user to scroll past."
+      },
+      {
+        "index": 9,
+        "reason": "Duplicate of index 1. Offers no new visual information for a fast-paced video ad.",
+        "what_it_would_wrongly_signal": "A lack of variety, making the property seem limited or the ad repetitive."
+      }
+    ],
+    "selected_indices_hero_first": [
+      7,
+      1,
+      4,
+      8,
+      2
+    ],
+    "narrative_slot_plan": [
+      {
+        "slot": "hook",
+        "index": 7,
+        "on_screen_job": "Immediately show the twin beds to solve the ICP's core problem and stop their scroll."
+      },
+      {
+        "slot": "context",
+        "index": 1,
+        "on_screen_job": "Show the stylish, modern lobby to prove this is a legitimate, safe, and cool hotel."
+      },
+      {
+        "slot": "core_experience",
+        "index": 4,
+        "on_screen_job": "Reinforce the artistic, design-forward vibe of the hotel's common spaces."
+      },
+      {
+        "slot": "payoff",
+        "index": 8,
+        "on_screen_job": "Show the witty headboard detail to confirm the 'friends trip' vibe and add personality."
+      },
+      {
+        "slot": "proof_or_climax",
+        "index": 2,
+        "on_screen_job": "Use this visually striking frame to showcase the hotel's bold art style, connecting it to the artistic Montparnasse location."
+      }
+    ],
+    "creative_director_notes_for_assembly": "The narrative hinges on solving the 'friends trip' problem. Lead with the twin beds (7), then establish the hotel's cool factor with the lobby (1, 4). The headboard detail (8) is a perfect, witty payoff. The final shot (2) is a calculated risk: use its superior visual dynamism ONLY to represent the overall artistic brand of the hotel, not the specific room. It must be the final beat, after we have firmly established the twin-bed reality, to land the 'Art Hotel in Montparnasse' message. Do not linger on it."
+  },
+  "duration_seconds": 20,
+  "judge_score": 9.6,
+  "judge_rationale": "Brief 1 is the strongest because its scene plan is perfectly engineered to match the ICP's booking psychology, leading with the twin bed photo to immediately solve the core problem. While Brief 2 also correctly identifies this hook, Brief 1's scene plan is slightly more logical by showing the hotel context before the witty headboard detail. Brief 0 completely fails by hiding the twin bed photo, which is the primary conversion driver.",
+  "judge_scores_per_brief": [
+    {
+      "index": 0,
+      "icp_alignment": 3,
+      "hook_strength": 4,
+      "specificity": 5,
+      "rejection_clarity": 8,
+      "conversion_focus": 2,
+      "aggregate": 4.4,
+      "weakness": "It fails to show the twin beds, which is the ICP's primary booking trigger."
+    },
+    {
+      "index": 1,
+      "icp_alignment": 10,
+      "hook_strength": 10,
+      "specificity": 10,
+      "rejection_clarity": 9,
+      "conversion_focus": 9,
+      "aggregate": 9.6,
+      "weakness": "The social proof scene could be stronger by using a more visually engaging photo."
+    },
+    {
+      "index": 2,
+      "icp_alignment": 10,
+      "hook_strength": 9,
+      "specificity": 9,
+      "rejection_clarity": 8,
+      "conversion_focus": 8,
+      "aggregate": 8.8,
+      "weakness": "The scene plan is slightly less logical, showing the twin beds twice before establishing the location."
+    }
+  ]
+}

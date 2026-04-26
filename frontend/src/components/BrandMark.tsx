@@ -7,11 +7,13 @@ interface BrandMarkProps {
 
 export function BrandMark({ className }: BrandMarkProps) {
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <span className="text-display-md leading-none">Editorial</span>
+    <div className={cn("flex items-baseline gap-1.5", className)}>
+      <span className="font-serif text-display-md leading-none tracking-tight">
+        Argus
+      </span>
       <span
         aria-hidden
-        className="inline-block h-2.5 w-2.5 bg-secondary"
+        className="inline-block h-1.5 w-1.5 rounded-full bg-primary"
       />
     </div>
   )

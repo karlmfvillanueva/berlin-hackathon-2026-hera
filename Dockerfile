@@ -23,16 +23,21 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv
 
 # Install Python deps first (better layer caching).
-COPY backend/pyproject.toml backend/uv.lock ./
+# .python-version is copied so uv auto-downloads the pinned interpreter (3.14)
+# rather than falling back to the system Python (3.12 on noble) and breaking
+# the locked wheel set.
+COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
 RUN uv sync --frozen --no-dev
 
 # Backend source
 COPY backend/src/ ./src/
+COPY backend/scripts/entrypoint.sh ./entrypoint.sh
 COPY supabase/migrations/ ./migrations/
+RUN chmod +x ./entrypoint.sh
 
 # Frontend dist → ./static so main.py's StaticFiles mount picks it up.
 COPY --from=fe-builder /fe/dist ./static/
 
 EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
-CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./entrypoint.sh"]

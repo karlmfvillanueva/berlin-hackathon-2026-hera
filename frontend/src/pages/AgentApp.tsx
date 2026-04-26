@@ -1,0 +1,380 @@
+import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "react-router-dom"
+
+import { ErrorState } from "@/components/ErrorState"
+import { Header } from "@/components/Header"
+import { RationaleRail } from "@/components/RationaleRail"
+import { StepIndicator } from "@/components/StepIndicator"
+import { Storyboard } from "@/components/Storyboard"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { UrlInput } from "@/components/UrlInput"
+import { VideoPlayer } from "@/components/VideoPlayer"
+
+import { postGenerate, postListing, postRegenerate, pollStatus } from "../api/client"
+import type { AppState, Overrides, Phase1Decision, ScrapedListing } from "../types"
+
+const POLL_INTERVAL_MS = 5000
+const POLL_TIMEOUT_MS = 3 * 60 * 1000
+
+const GENERATING_STEPS = [
+  "Analyze",
+  "Draft",
+  "Render",
+  "Finalize",
+] as const
+
+export function AgentApp() {
+  const [state, setState] = useState<AppState>({ screen: "idle" })
+  const [listingUrl, setListingUrl] = useState(
+    "https://www.airbnb.com/rooms/kreuzberg-loft-demo",
+  )
+  const [searchParams, setSearchParams] = useSearchParams()
+  const deepLinkHandled = useRef(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [scriptStep, setScriptStep] = useState(0)
+  const [outpaintEnabled, setOutpaintEnabled] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState(false)
+
+  const pollIntervalRef = useRef<number | null>(null)
+  const pollStartRef = useRef<number>(0)
+
+  function clearPolling() {
+    if (pollIntervalRef.current !== null) {
+      window.clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+  }
+
+  function goIdle() {
+    clearPolling()
+    setElapsedSeconds(0)
+    setScriptStep(0)
+    setOutpaintEnabled(false)
+    setDownloadError(false)
+    setState({ screen: "idle" })
+  }
+
+  async function handleGenerate(url: string) {
+    setListingUrl(url)
+    setSubmitting(true)
+    try {
+      const { listing, phase1 } = await postListing(url, outpaintEnabled)
+      const overrides: Overrides = {
+        language: phase1.suggested_language,
+        tone: phase1.suggested_tone,
+        emphasis: [],
+        deemphasis: [],
+        hook_id: "auto",
+      }
+      setState({ screen: "storyboard", listing, phase1, overrides })
+    } catch (err) {
+      setState({
+        screen: "error",
+        message: err instanceof Error ? err.message : "Failed to fetch listing.",
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Deep-link from the Landing CTA: /app?url=<encoded>. Fire once per mount
+  // when the URL param is present and we haven't already started a flow.
+  // queueMicrotask defers the state-flipping handleGenerate out of the effect
+  // body so the render commit completes first.
+  useEffect(() => {
+    if (deepLinkHandled.current) return
+    const url = searchParams.get("url")
+    if (!url) return
+    deepLinkHandled.current = true
+    setSearchParams({}, { replace: true })
+    queueMicrotask(() => void handleGenerate(decodeURIComponent(url)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function handleRender(
+    listing: ScrapedListing,
+    phase1: Phase1Decision,
+    overrides: Overrides,
+  ) {
+    setSubmitting(true)
+    setScriptStep(0)
+    setElapsedSeconds(0)
+    try {
+      const { video_id, decision } = await postGenerate(
+        listingUrl,
+        listing,
+        phase1,
+        overrides,
+      )
+      setState({
+        screen: "generating",
+        listing,
+        phase1,
+        overrides,
+        decision,
+        videoId: video_id,
+      })
+    } catch (err) {
+      setState({
+        screen: "error",
+        message: err instanceof Error ? err.message : "Failed to start generation.",
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleRegenerate() {
+    if (state.screen !== "done") return
+    const { listing, phase1, overrides, decision } = state
+    setRegenerating(true)
+    try {
+      const { video_id, decision: newDecision } = await postRegenerate(
+        listingUrl,
+        listing,
+        decision,
+      )
+      setState({
+        screen: "generating",
+        listing,
+        phase1,
+        overrides,
+        decision: newDecision,
+        videoId: video_id,
+      })
+    } catch (err) {
+      setState({
+        screen: "error",
+        message: err instanceof Error ? err.message : "Failed to regenerate.",
+      })
+    } finally {
+      setRegenerating(false)
+    }
+  }
+
+  function updateOverrides(next: Overrides) {
+    if (state.screen !== "storyboard") return
+    setState({ ...state, overrides: next })
+  }
+
+  async function handleDownload() {
+    if (state.screen !== "done") return
+    setDownloadError(false)
+    setDownloading(true)
+
+    async function fetchAndTrigger(fileUrl: string): Promise<boolean> {
+      const res = await fetch(fileUrl)
+      if (!res.ok) return false
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = objectUrl
+      a.download = "hera-video.mp4"
+      a.click()
+      URL.revokeObjectURL(objectUrl)
+      return true
+    }
+
+    try {
+      const ok = await fetchAndTrigger(state.fileUrl)
+      if (!ok) {
+        const data = await pollStatus(state.videoId)
+        const freshUrl = data.outputs[0]?.file_url ?? ""
+        if (freshUrl) {
+          const retryOk = await fetchAndTrigger(freshUrl)
+          if (!retryOk) setDownloadError(true)
+        } else {
+          setDownloadError(true)
+        }
+      }
+    } catch {
+      setDownloadError(true)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  function handleShare() {
+    if (state.screen !== "done") return
+    void navigator.clipboard.writeText(state.fileUrl)
+  }
+
+  useEffect(() => {
+    if (state.screen !== "generating") return
+    const { videoId, listing, phase1, overrides, decision } = state
+
+    let cancelled = false
+    pollStartRef.current = Date.now()
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setScriptStep(1)
+    const step2Timer = window.setTimeout(() => {
+      if (!cancelled) setScriptStep(2)
+    }, 1000)
+
+    async function doPoll() {
+      if (cancelled) return
+
+      const elapsed = Date.now() - pollStartRef.current
+      setElapsedSeconds(Math.floor(elapsed / 1000))
+
+      if (elapsed >= POLL_TIMEOUT_MS) {
+        clearPolling()
+        if (!cancelled) {
+          setState({ screen: "error", message: "Generation timed out after 3 minutes." })
+        }
+        return
+      }
+
+      try {
+        const data = await pollStatus(videoId)
+        if (cancelled) return
+
+        if (data.status === "success") {
+          clearPolling()
+          const fileUrl = data.outputs[0]?.file_url ?? ""
+          setState({
+            screen: "done",
+            listing,
+            phase1,
+            overrides,
+            decision,
+            fileUrl,
+            videoId,
+          })
+        } else if (data.status === "failed") {
+          clearPolling()
+          setState({
+            screen: "error",
+            message: data.outputs[0]?.error ?? "Hera reported a failure.",
+          })
+        }
+      } catch (err) {
+        if (!cancelled) {
+          clearPolling()
+          setState({
+            screen: "error",
+            message: err instanceof Error ? err.message : "Polling failed.",
+          })
+        }
+      }
+    }
+
+    void doPoll()
+    pollIntervalRef.current = window.setInterval(doPoll, POLL_INTERVAL_MS)
+
+    return () => {
+      cancelled = true
+      clearPolling()
+      window.clearTimeout(step2Timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.screen === "generating" ? state.videoId : null])
+
+  // Map state → which step the horizontal indicator highlights.
+  // Analyze flashes briefly; Draft sits ~5s; Render takes most of the time;
+  // Finalize lights up in the last seconds before status flips to "success".
+  const generatingCurrent =
+    scriptStep < 2
+      ? 1
+      : elapsedSeconds < 5
+        ? 2
+        : elapsedSeconds < 75
+          ? 3
+          : 4
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background font-sans text-foreground">
+      <Header />
+
+      {/* idle */}
+      {state.screen === "idle" && (
+        <main className="flex flex-1 items-center justify-center">
+          <UrlInput
+            onSubmit={handleGenerate}
+            loading={submitting}
+            outpaintEnabled={outpaintEnabled}
+            onOutpaintChange={setOutpaintEnabled}
+          />
+        </main>
+      )}
+
+      {/* storyboard */}
+      {state.screen === "storyboard" && (
+        <Storyboard
+          listing={state.listing}
+          phase1={state.phase1}
+          overrides={state.overrides}
+          onChange={updateOverrides}
+          onRender={() =>
+            void handleRender(state.listing, state.phase1, state.overrides)
+          }
+          onBack={goIdle}
+          submitting={submitting}
+        />
+      )}
+
+      {/* generating */}
+      {state.screen === "generating" && (
+        <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-8 px-6 py-16">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <p className="text-label text-muted-foreground">In progress</p>
+            <h2 className="text-display-lg">Generating your video.</h2>
+            <p className="text-body text-muted-foreground">
+              Our agent is making editorial calls. Hang tight — usually 60–90 seconds.
+            </p>
+          </div>
+
+          <Card className="w-full max-w-lg p-6">
+            <StepIndicator steps={[...GENERATING_STEPS]} currentStep={generatingCurrent} />
+          </Card>
+
+          <Button onClick={goIdle} variant="link">
+            Cancel
+          </Button>
+        </main>
+      )}
+
+      {/* done */}
+      {state.screen === "done" && (
+        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-12">
+          <div className="flex flex-col gap-2">
+            <p className="text-label text-muted-foreground">
+              Listing · {new URL(listingUrl).pathname}
+            </p>
+            <h2 className="text-display-xl">{state.listing.title}.</h2>
+            <p className="text-body italic text-muted-foreground">
+              {state.listing.location} · {state.listing.bedrooms_sleeps}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-7 lg:grid-cols-[1.4fr_1fr]">
+            <div className="flex justify-center">
+              <VideoPlayer
+                fileUrl={state.fileUrl}
+                caption={state.decision.hook}
+                onDownload={() => void handleDownload()}
+                onRegenerate={() => void handleRegenerate()}
+                onShare={handleShare}
+                downloading={downloading}
+                regenerating={regenerating}
+                downloadError={downloadError}
+              />
+            </div>
+
+            <RationaleRail decision={state.decision} />
+          </div>
+        </main>
+      )}
+
+      {/* error */}
+      {state.screen === "error" && (
+        <ErrorState message={state.message} onRetry={goIdle} />
+      )}
+    </div>
+  )
+}

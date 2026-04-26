@@ -48,3 +48,5 @@ frontend/package-lock.json
 
 # Ad-hoc screenshots dropped at repo root
 /*.png
+/*.jpg
+/*.jpeg

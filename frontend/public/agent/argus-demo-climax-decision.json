@@ -1,0 +1,426 @@
+{
+  "vibes": "coastal",
+  "hook": "Your vacation, simplified to the sea.",
+  "pacing": "Medium-slow pace. ~2-3s per shot, featuring slow, contemplative push-ins and gentle pans.",
+  "angle": "A safe, easy, and beautiful solo retreat with built-in activities like diving, snorkeling, and a spa.",
+  "background": "Sell a solo traveler their dream of waking up to the ocean in a tranquil, beautiful resort, with every detail taken care of.",
+  "selected_image_urls": [
+    "https://a0.muscache.com/im/pictures/miso/Hosting-648914239689489448/original/c9ebf790-a130-48ab-b043-ed3b42af4b79.jpeg",
+    "https://a0.muscache.com/im/pictures/miso/Hosting-648914239689489448/original/ad92d412-86bb-4f3a-9e59-794bd39ecbbe.jpeg",
+    "https://a0.muscache.com/im/pictures/miso/Hosting-648914239689489448/original/9a2a3ed0-bdcf-4a25-8fc1-d052ce30e881.jpeg",
+    "https://a0.muscache.com/im/pictures/miso/Hosting-648914239689489448/original/034ab611-1f00-42a2-8acd-876b0d74d06e.jpeg"
+  ],
+  "hera_prompt": "Create a 25 second vertical motion graphics video (9:16, 1080×1920).\nOptimised for Instagram Reels and TikTok. Sound on.\n\nTARGET GUEST: The Solo Traveler seeking rejuvenation and safe, effortless adventure.\n\nREJECTED PERSONAS:\n- Luxury Seekers (the shared bathroom is a dealbreaker)\n- Groups & Families (the space is for one or two people max)\n- Party-Goers (the vibe is tranquility, not nightlife)\n- Digital Nomads (the focus is on disconnecting, not working)\n\nANGLE:\nThis is not just a room; it's a self-contained wellness retreat for one, where the primary activities—snorkeling, relaxing, dining—are built-in, removing all planning friction.\n\nEMOTIONAL PROMISE:\nEffortless Rejuvenation. You will leave feeling restored because everything you need to relax and explore is right at your doorstep.\n\nHOOK:\nJuxtapose the feeling of ultimate simplicity with a high-value, unique feature (the house reef). We sell the outcome (a simplified trip) and then reveal the unique reason why (a private reef).\n\nOPENING HOOK LINE:\nYour Bali trip, simplified.\n\n---\n\nVISUAL SYSTEM\n\nBackground color(s): #F5F1E9 | Warm Sand\nTypography style (serif/sans usage): Elegant, thin italic serif for evocative lines; Clean, lightweight geometric sans-serif (all lowercase) for amenities and CTA.\nAccent color: #6CA8A2 | Sea Glass Teal\nPacing (fast / calm / cinematic): Slow, contemplative pace. Lo-fi intimacy.\nTransitions: Soft cross-dissolves.\nMusic style: Lo-fi acoustic. Warm, intimate, with a sense of calm discovery.\n\n---\n\nPHOTO STRATEGY\n\nPhoto 1 (hero): 4 — HOOK: The core promise of waking up to the ocean.\nPhoto 2: 1 — CONTEXT: Establishes the lush, safe, resort-like garden setting.\nPhoto 3: 3 — CORE EXPERIENCE: Shows the clean, comfortable private bedroom.\nPhoto 4: 6 — FEATURE PAYOFF: Visual proof of the 'exceptional hospitality' theme from reviews.\nPhoto 5: 2 — CLIMAX: Confirms the unique bungalow that is 'your' private escape.\n\n---\n\nSCENE PLAN (MANDATORY)\n\nSCENE 1 — HOOK (0.0–3.5s)\nVisual: Photo 4 (view from bed to ocean).\nMotion: Very slow push-in towards the open doors.\nText: Your Bali trip, simplified.\n\nSCENE 2 — LOCATION / CONTEXT (3.5–7.0s)\nVisual: Photo 1 (garden path).\nMotion: Slow pan right, following the path.\nText: Your front yard is a private reef.\n\nSCENE 3 — CORE EXPERIENCE (7.0–13.0s)\nVisual: Photo 3 (bedroom interior).\nMotion: Gentle Ken Burns effect, slow zoom out to reveal the space.\nText: Your only decision: swim, snorkel, or spa?\n\nSCENE 4 — FEATURE PAYOFF (13.0–18.0s)\nVisual: Photo 6 (flower detail on bed).\nMotion: Static shot, with a gentle light pulse.\nText: (no text, let the visual communicate 'hospitality')\n\nSCENE 5 — SOCIAL PROOF / CLIMAX (18.0–22.5s)\nVisual: Photo 2 (bungalow exterior).\nMotion: Slow zoom out, holding the bungalow centered.\nText: \"The most welcoming stay in Bali.\" (Themed from 'Exceptional Hospitality' review data)\n\nSCENE 6 — CTA (22.5–25.0s)\nVisual: Solid background color (#708090 | Contemplative Slate) with text.\nMotion: Text fades in.\nText: Your solo retreat is waiting.\nBook the Bungalow in Sambirenteng.\n\n---\n\nWHAT TO PUSH\n\n- The feeling of waking up to the ocean.\n- The house reef (the ultimate friction-reducer for a water-lover).\n- The self-contained, resort-like safety (pool, spa, restaurant on site).\n- The exceptional hospitality, proven by the flower detail and review theme.\n- The 'solo retreat' angle, making it a clear choice for a specific person.\n\n---\n\nWHAT TO HIDE\n\n- The shared bathroom. This is the single biggest conversion risk and contradicts the premium-experience feel of the video.\n- The fact it's part of a larger resort. We are selling the feeling of a private bungalow escape.\n- Any amenity that is standard or weak (e.g., WiFi).\n- The exact location on a map. The location's benefit is its on-site features, not its proximity to other things.\n\n---\n\nCONVERSION PSYCHOLOGY\n\nThis video converts the Solo Traveler by selling a solution to their biggest travel pains: planning friction and safety. By positioning the bungalow as a self-contained retreat with a private reef, pool, and spa, we eliminate the need for daily planning. The angle is not 'book this room,' but 'book this effortless experience.' We validate the decision with a strong hospitality theme, creating trust. We reject the 'couples' angle to create a sharper, more compelling message for a single, highly-motivated persona who is less likely to be deterred by the (hidden) shared bathroom.",
+  "outpaint_enabled": false,
+  "beliefs_applied": [
+    "cta_at_end",
+    "hook_with_hero_shot",
+    "warm_palette_for_beach",
+    "slow_reveal_for_hero",
+    "override:lang=en,tone=cozy,emphasis=0,hook=auto"
+  ],
+  "icp": {
+    "best_icp": {
+      "persona": "Solo traveler",
+      "fit_score": 0.92,
+      "why_it_wins": "A solo traveler gets all the benefits of a beautiful, safe resort (pool, restaurant, activities) without the primary drawback—the shared bathroom—being a major issue. It's a perfect, self-contained package for safe exploration and relaxation.",
+      "booking_trigger": "Seeing the on-site diving center, spa, and pool within a secure resort context. It promises an easy, beautiful, and safe escape without the need for complex planning.",
+      "emotional_driver": "Rejuvenation and safe adventure."
+    },
+    "secondary_personas": [
+      {
+        "persona": "Couples weekend break",
+        "fit_score": 0.85,
+        "why_it_still_works": "The romantic 'bungalow on the sea' concept with a pool, spa, and restaurant is extremely compelling. The shared bathroom is a negative, but many couples will accept it for the location and experience."
+      },
+      {
+        "persona": "Budget-smart traveler",
+        "fit_score": 0.7,
+        "why_it_still_works": "This listing provides access to resort-level amenities (pool, private beach, spa) at what is likely a more accessible price point, signaled by the bungalow style and shared bathroom. It's high value for money."
+      }
+    ],
+    "rejected_personas": [
+      {
+        "persona": "Luxury experience seeker",
+        "why_it_fails": "A shared bathroom is an instant disqualifier for a true luxury booking. The aesthetic is beautiful and experiential, not opulent or exclusive."
+      },
+      {
+        "persona": "Friend group celebration",
+        "why_it_fails": "The listing is for a 1-bedroom, 1-bed bungalow, making it completely unsuitable for any group."
+      },
+      {
+        "persona": "Party group",
+        "why_it_fails": "The property is explicitly marketed as an 'oasis of tranquility,' which is the direct opposite of a party-centric booking."
+      },
+      {
+        "persona": "Digital nomad",
+        "why_it_fails": "The listing emphasizes relaxation, dreaming, and activities, with no mention of a workspace, desk, or reliable internet for productivity."
+      },
+      {
+        "persona": "First-time city tourist",
+        "why_it_fails": "This is a remote beach resort focused on nature and on-site activities, not a base for urban sightseeing."
+      },
+      {
+        "persona": "Family visiting adult child",
+        "why_it_fails": "The 1-bed layout and resort-style location are a poor fit for the practical and comfort-based needs of this persona."
+      }
+    ],
+    "conversion_summary": {
+      "what_guest_is_really_booking": "A safe, easy, and beautiful solo retreat with built-in activities like diving, snorkeling, and a spa.",
+      "what_they_do_not_care_about": "A private ensuite bathroom or a full kitchen.",
+      "why_this_listing_converts_for_this_icp": "It removes the friction and planning from a solo beach holiday by offering a beautiful, secure environment with everything needed for relaxation and adventure on-site."
+    }
+  },
+  "location_enrichment": {
+    "location_summary": {
+      "headline": "Stay directly on a private house reef for snorkeling from your doorstep.",
+      "guest_trip_payoff": "Guests can skip the planning and cost of dive boat excursions; the best snorkeling and diving is just steps from the bungalow, available anytime.",
+      "differentiator_vs_generic_stays": "Unlike other villas where 'beachfront' just means sand, this location offers a vibrant, healthy house reef, turning the property itself into the main attraction."
+    },
+    "landmark_proximity": [
+      "On-site House Reef: A 0-minute walk lets you snorkel or dive without booking a tour.",
+      "On-site Diving Center: A 1-minute walk to arrange gear and guided dives on your schedule.",
+      "On-site Restaurant & Bar: Steps from your bungalow, eliminating the need to find transport for meals.",
+      "Private Beach Access: Directly on the property, for immediate relaxation without crowds."
+    ],
+    "walkability_value": {
+      "daily_rhythm_without_car": "Wake up, snorkel the reef before breakfast, relax by the pool, and walk to the on-site restaurant for dinner. No car or scooter rental is needed for a complete holiday experience.",
+      "planning_friction_removed": "Eliminates the daily 'what do we do today?' debate. The core activities (diving, snorkeling, relaxing) are built into the property, requiring zero travel logistics.",
+      "concrete_examples": [
+        "Walk from your bungalow to the shore in under a minute to snorkel the house reef.",
+        "Stroll through the two-hectare palm garden to the on-site restaurant for meals.",
+        "Access the main pool and sun loungers without leaving the property.",
+        "Visit the on-site spa for a treatment without needing a taxi."
+      ]
+    },
+    "neighborhood_identity": {
+      "character_in_guest_words": "My own private marine sanctuary. It's quiet, secluded, and everything I need for a dive holiday is right here.",
+      "who_thrives_here": "Divers, snorkelers, and couples seeking a tranquil escape focused on marine life and relaxation, away from Bali's party scene.",
+      "social_energy": "Low-key and nature-focused. Social interactions happen at the dive center or restaurant, centered around shared interests in the ocean, not nightlife."
+    },
+    "best_trip_occasions": [
+      "Dedicated snorkeling or diving holiday where water access is the top priority.",
+      "Romantic getaway for a couple focused on nature and tranquility.",
+      "A 'recharge' trip to disconnect, with no need to plan daily excursions.",
+      "Learning to dive with the convenience of an on-site dive center and house reef."
+    ],
+    "friction_reducers": [
+      "No need to rent a car or scooter for daily activities, saving money and hassle.",
+      "On-site restaurant solves the 'where to eat' problem for every meal.",
+      "Direct access to a house reef eliminates the time and cost of booking daily boat trips for snorkeling.",
+      "The property is a self-contained resort, making it an easy, low-planning vacation."
+    ],
+    "location_risks": [
+      "The bathroom is shared ('Gemeinschafts-Badezimmer'), which may not suit guests seeking full privacy.",
+      "The location is intentionally isolated; guests seeking nightlife, shopping, or a variety of external restaurants will need transport.",
+      "This is a bungalow within a larger hotel/resort complex, not a fully private, isolated villa.",
+      "The value is in the on-site amenities; there is no information about walkability to the surrounding Sambirenteng village."
+    ],
+    "creative_translation": {
+      "on_screen_hook_ideas": [
+        "Skip the dive boat. Your reef is here.",
+        "This isn't just beachfront. It's a house reef.",
+        "Your Bali plan: 1. Wake up. 2. Snorkel."
+      ],
+      "b_roll_or_map_direction": "Show a simple animated line from the bungalow door directly into the water, with icons for a snorkel mask and fish appearing. No map of the region, just the property.",
+      "emotional_carrier_line": "Your vacation, simplified to the sea."
+    }
+  },
+  "reviews_evaluation": {
+    "review_summary": {
+      "overall_sentiment": "Overwhelmingly positive based on the 4.91 rating from 22 reviews, but no verbatim review text was provided in the scrape for detailed analysis.",
+      "review_count_used": 0,
+      "most_repeated_positive_theme": "Hospitality (mentioned 15 times in review tags)",
+      "most_repeated_negative_theme": "None identified"
+    },
+    "positive_patterns": [],
+    "negative_patterns": [],
+    "best_video_quotes": [],
+    "claims_validation": [
+      {
+        "claim": "Exceptional Hospitality",
+        "source": "guest_review",
+        "allowed_in_video": true,
+        "notes": "Strongly supported by the 'Gastfreundschaft15' (Hospitality) AI review tag, indicating it is the most frequently praised aspect by guests."
+      },
+      {
+        "claim": "Pool",
+        "source": "guest_review",
+        "allowed_in_video": true,
+        "notes": "Supported by the 'Pool7' AI review tag and mentioned in the host description."
+      },
+      {
+        "claim": "Good Location",
+        "source": "guest_review",
+        "allowed_in_video": true,
+        "notes": "Supported by the 'Lage5' (Location) AI review tag."
+      },
+      {
+        "claim": "Einzigartiger Bungalow",
+        "source": "host_claim_only",
+        "allowed_in_video": false,
+        "notes": "This is a subjective marketing claim from the listing title ('Unique Bungalow'). It is not backed by guest reviews."
+      },
+      {
+        "claim": "Oase der Ruhe",
+        "source": "host_claim_only",
+        "allowed_in_video": false,
+        "notes": "This is a subjective marketing claim from the listing description ('Oasis of calm'). It is not backed by guest reviews."
+      },
+      {
+        "claim": "privatem Strand- und Meerzugang",
+        "source": "host_claim_only",
+        "allowed_in_video": false,
+        "notes": "Claim of 'private beach and sea access' is from the host description. While 'Strand2' tag exists, it doesn't confirm the 'private' aspect."
+      },
+      {
+        "claim": "schönen gesunden Hausriff",
+        "source": "host_claim_only",
+        "allowed_in_video": false,
+        "notes": "Claim of a 'beautiful healthy house reef' is from the host description and not verified by guest reviews."
+      },
+      {
+        "claim": "Shared Bathroom",
+        "source": "listing_fact",
+        "allowed_in_video": true,
+        "notes": "The listing explicitly states '1 Gemeinschafts-Badezimmer' (1 shared bathroom). This is a critical fact for setting guest expectations, not a marketing claim."
+      }
+    ],
+    "quotes_to_avoid": [],
+    "creative_implications": {
+      "what_reviews_prove": [
+        "The hospitality is exceptional and the most memorable part of the stay.",
+        "The property has a great pool that guests enjoy.",
+        "The location is a positive aspect for guests."
+      ],
+      "what_to_emphasize": [
+        "The staff and their welcoming nature (hospitality).",
+        "The pool area as a key amenity.",
+        "The general beauty of the location and seaside setting, without making unverified claims about 'private' access or reef 'health'."
+      ],
+      "what_to_hide_or_avoid": [
+        "The fact that the bathroom is shared ('Gemeinschafts-Badezimmer'). While this must be clear in the listing, the video should avoid focusing on the bathroom or implying it is private to prevent disappointment. Focus on the bedroom and the shared resort-style amenities instead."
+      ],
+      "strongest_review_backed_angle": "Experience exceptional Balinese hospitality at a beautiful seaside retreat with a fantastic pool."
+    }
+  },
+  "visual_system": {
+    "inferred_setting": "coastal",
+    "primary_background": "#F5F1E9 | Warm Sand",
+    "cta_card_only": "#708090 | Contemplative Slate",
+    "primary_type": "#4A5568 | Deep Slate Grey",
+    "accent": "#6CA8A2 | Sea Glass Teal",
+    "font_review_quotes": "Elegant, thin italic serif, like a personal journal entry.",
+    "font_labels_stats_ctas": "Clean, lightweight geometric sans-serif, all lowercase.",
+    "pacing": "Medium-slow pace. ~2-3s per shot, featuring slow, contemplative push-ins and gentle pans.",
+    "transitions": "Soft cross-dissolves and slow, horizontal wipes that mimic the tide line.",
+    "music": "Ambient electronic, ~90 BPM. Minimal, with watery textures and a sense of calm discovery."
+  },
+  "photo_analysis": {
+    "analysis_summary": {
+      "one_line_strategy": "Sell a solo traveler their dream of waking up to the ocean in a tranquil, beautiful resort, with every detail taken care of.",
+      "icp_visual_hypothesis": "The solo traveler sees a perfect, self-contained escape: a beautiful room opening to the sea, set within lush, safe grounds, promising an easy and rejuvenating adventure.",
+      "biggest_visual_risk": "The gallery completely lacks photos of the key differentiators mentioned in the text: the house reef, the pool, and the diving center. The ad must sell the vibe and location promise without visual proof of the main activities.",
+      "gallery_cohesion_score": 0.9
+    },
+    "per_photo_scores": [
+      {
+        "index": 1,
+        "hook_stopping_power": 0.9,
+        "composition_clarity": 0.9,
+        "lighting_truthfulness": 0.8,
+        "icp_alignment": 1,
+        "review_consistency": 1,
+        "conversion_role_if_selected": "location_context",
+        "honesty_risk": "low",
+        "verdict": "Keep as the establishing shot that sells the 'oasis of tranquility' and secure resort feel."
+      },
+      {
+        "index": 2,
+        "hook_stopping_power": 0.6,
+        "composition_clarity": 1,
+        "lighting_truthfulness": 1,
+        "icp_alignment": 0.8,
+        "review_consistency": 1,
+        "conversion_role_if_selected": "social_proof_visual",
+        "honesty_risk": "low",
+        "verdict": "Keep as a clear, honest exterior shot to ground the dream and show the unique bungalow architecture."
+      },
+      {
+        "index": 3,
+        "hook_stopping_power": 0.5,
+        "composition_clarity": 0.9,
+        "lighting_truthfulness": 0.9,
+        "icp_alignment": 0.9,
+        "review_consistency": 1,
+        "conversion_role_if_selected": "space_story",
+        "honesty_risk": "low",
+        "verdict": "Keep to showcase the spacious, clean, and well-appointed bedroom interior, establishing the core living space."
+      },
+      {
+        "index": 4,
+        "hook_stopping_power": 1,
+        "composition_clarity": 1,
+        "lighting_truthfulness": 0.9,
+        "icp_alignment": 1,
+        "review_consistency": 1,
+        "conversion_role_if_selected": "hero_hook",
+        "honesty_risk": "low",
+        "verdict": "Select as the hero hook; it instantly sells the core promise of waking up to the ocean, perfectly aligning with the ICP's desires."
+      },
+      {
+        "index": 5,
+        "hook_stopping_power": 0.6,
+        "composition_clarity": 0.7,
+        "lighting_truthfulness": 1,
+        "icp_alignment": 0.7,
+        "review_consistency": 1,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "low",
+        "verdict": "Reject as it's a redundant exterior shot, less atmospheric than image 1 and less direct than image 2."
+      },
+      {
+        "index": 6,
+        "hook_stopping_power": 0.3,
+        "composition_clarity": 0.8,
+        "lighting_truthfulness": 1,
+        "icp_alignment": 0.9,
+        "review_consistency": 1,
+        "conversion_role_if_selected": "detail_payoff",
+        "honesty_risk": "low",
+        "verdict": "Keep as a detail shot that visually proves the 'exceptional hospitality' theme from reviews, adding a layer of trust."
+      },
+      {
+        "index": 7,
+        "hook_stopping_power": 0.4,
+        "composition_clarity": 0.7,
+        "lighting_truthfulness": 0.9,
+        "icp_alignment": 0.6,
+        "review_consistency": 1,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "low",
+        "verdict": "Reject as a redundant interior angle; image 4 is a far superior composition that connects the interior to the view."
+      },
+      {
+        "index": 8,
+        "hook_stopping_power": 0.1,
+        "composition_clarity": 0.6,
+        "lighting_truthfulness": 1,
+        "icp_alignment": 0.2,
+        "review_consistency": 0.5,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "high",
+        "verdict": "Reject decisively; showing the basic, shared bathroom creates a high risk of setting false expectations of privacy and undermines the premium feel."
+      },
+      {
+        "index": 9,
+        "hook_stopping_power": 0,
+        "composition_clarity": 0,
+        "lighting_truthfulness": 0,
+        "icp_alignment": 0,
+        "review_consistency": 0,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "low",
+        "verdict": "Reject as a low-resolution duplicate of image 1."
+      },
+      {
+        "index": 10,
+        "hook_stopping_power": 0,
+        "composition_clarity": 0,
+        "lighting_truthfulness": 0,
+        "icp_alignment": 0,
+        "review_consistency": 0,
+        "conversion_role_if_selected": "reject",
+        "honesty_risk": "low",
+        "verdict": "Reject as a low-resolution duplicate of image 2."
+      }
+    ],
+    "rejected_gallery_strengths": [
+      {
+        "index": 8,
+        "reason": "The listing specifies a shared bathroom. Showing this image, even if factually accurate, would create ambiguity and potentially disappoint viewers who assume a private ensuite from the video's premium feel.",
+        "what_it_would_wrongly_signal": "That the bathroom is private and a key feature, when in reality it's a shared utility and a potential friction point for many guests."
+      },
+      {
+        "index": 5,
+        "reason": "This exterior shot is compositionally weaker and less emotionally resonant than image 1 (dreamy atmosphere) and less informative than image 2 (clear architecture).",
+        "what_it_would_wrongly_signal": "A lack of visual variety, making the property seem repetitive."
+      },
+      {
+        "index": 7,
+        "reason": "This interior shot showing the daybed is redundant. The hero shot (image 4) already establishes the interior and its connection to the ocean much more effectively.",
+        "what_it_would_wrongly_signal": "That the ad is just a boring room tour rather than a story about an experience."
+      }
+    ],
+    "selected_indices_hero_first": [
+      4,
+      1,
+      3,
+      6,
+      2
+    ],
+    "narrative_slot_plan": [
+      {
+        "slot": "hook",
+        "index": 4,
+        "on_screen_job": "Instantly sell the dream: show the solo traveler they can wake up with the ocean at their feet."
+      },
+      {
+        "slot": "context",
+        "index": 1,
+        "on_screen_job": "Establish the setting as a lush, tranquil, and safe-feeling garden paradise."
+      },
+      {
+        "slot": "core_experience",
+        "index": 3,
+        "on_screen_job": "Show the clean, spacious, and comfortable private bedroom they will call home."
+      },
+      {
+        "slot": "payoff",
+        "index": 6,
+        "on_screen_job": "Prove the 'exceptional hospitality' from reviews with a detail shot of flowers on the bed."
+      },
+      {
+        "slot": "proof_or_climax",
+        "index": 2,
+        "on_screen_job": "Provide a clear, final look at the unique bungalow, confirming 'this is your beautiful escape'."
+      }
+    ],
+    "creative_director_notes_for_assembly": "The story is 'effortless seaside rejuvenation'. Start with the powerful inside-to-ocean view of frame 4. Do NOT show the bathroom (image 8) under any circumstances; it contradicts the premium vibe and is a known friction point (shared). The photo gallery is missing the pool and the house reef—the motion designer must use text overlays to communicate these critical, high-value amenities since we lack visual proof. Emphasize the hospitality angle with the detail shot (image 6) to build trust, as it's the strongest theme from reviews."
+  },
+  "duration_seconds": 25,
+  "judge_score": 9.2,
+  "judge_rationale": "Brief 2 wins due to its superior hook and scene plan. Its hook, \"Your front yard is a private reef,\" is far more specific and evocative than the others, and its scene plan creatively uses a question (\"swim, snorkel, or spa?\") to communicate amenities. While all briefs correctly identified the ICP and core strategy, Brief 2's execution is the sharpest and most likely to stop a scroll and drive a conversion.",
+  "judge_scores_per_brief": [
+    {
+      "index": 0,
+      "icp_alignment": 10,
+      "hook_strength": 6,
+      "specificity": 9,
+      "rejection_clarity": 9,
+      "conversion_focus": 10,
+      "aggregate": 8.8,
+      "weakness": "The opening hook line \"Your Bali plan:\" is a common and slightly weak trope compared to the rest of the brief's strength."
+    },
+    {
+      "index": 1,
+      "icp_alignment": 9,
+      "hook_strength": 7,
+      "specificity": 8,
+      "rejection_clarity": 8,
+      "conversion_focus": 9,
+      "aggregate": 8.2,
+      "weakness": "The scene plan is less impactful, with a weak climax scene and a less compelling CTA."
+    },
+    {
+      "index": 2,
+      "icp_alignment": 10,
+      "hook_strength": 10,
+      "specificity": 9,
+      "rejection_clarity": 9,
+      "conversion_focus": 9,
+      "aggregate": 9.4,
+      "weakness": "The conversion psychology section is slightly less detailed than Brief 0's, though still very strong."
+    }
+  ]
+}
