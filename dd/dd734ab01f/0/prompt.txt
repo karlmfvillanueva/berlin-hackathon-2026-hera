@@ -7,3 +7,7 @@ Now I want you to explain the user flow, create a USERFLOW.md file. From home pa
 ---
 
 #2
+
+---
+
+git commit as a new feature branch saying updated readme and images for '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/docs/readme/agents-stage1.jpg' nad '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/docs/readme/under-the-hood.jpg' and '/Users/karlvillanueva/Github/berlin-hackathon-2026-hera/README.md'
