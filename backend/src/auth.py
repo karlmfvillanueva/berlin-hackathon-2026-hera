@@ -117,11 +117,32 @@ _BearerCreds = Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_sc
 
 
 def current_user(creds: _BearerCreds) -> AuthenticatedUser:
-    """FastAPI dep — validates Supabase JWT or returns dev-bypass user."""
+    """FastAPI dep — validates Supabase JWT or returns dev-bypass user.
+
+    Dev mode (REQUIRE_AUTH=false) still prefers a real JWT when the frontend
+    sends one. Without this, locally-logged-in devs got stamped with the nil
+    user_id and inserts into `videos` failed the FK to auth.users, surfacing
+    as 'Saving to your library failed' on the done screen.
+    """
+    has_token = (
+        creds is not None
+        and creds.scheme.lower() == "bearer"
+        and bool(creds.credentials)
+    )
+
     if not _require_auth_enabled():
+        if has_token:
+            try:
+                payload = _decode_supabase_jwt(creds.credentials)
+                sub = payload.get("sub")
+                if sub:
+                    return AuthenticatedUser(user_id=sub, email=payload.get("email"))
+            except HTTPException:
+                # Bad/expired token in dev — fall through to bypass rather than 401.
+                pass
         return AuthenticatedUser(user_id=_DEV_BYPASS_USER_ID, email=_DEV_BYPASS_EMAIL)
 
-    if creds is None or creds.scheme.lower() != "bearer" or not creds.credentials:
+    if not has_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "missing_bearer_token"},
@@ -144,9 +165,9 @@ def optional_user(creds: _BearerCreds) -> AuthenticatedUser | None:
     Used by routes that behave differently for logged-in vs anonymous users
     (e.g. dashboard with optional demo-seed inclusion) without forcing 401.
     """
-    if not _require_auth_enabled():
-        return AuthenticatedUser(user_id=_DEV_BYPASS_USER_ID, email=_DEV_BYPASS_EMAIL)
     if creds is None or not creds.credentials:
+        if not _require_auth_enabled():
+            return AuthenticatedUser(user_id=_DEV_BYPASS_USER_ID, email=_DEV_BYPASS_EMAIL)
         return None
     try:
         # current_user takes the same creds parameter; pass through.

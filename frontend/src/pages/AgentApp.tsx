@@ -53,6 +53,10 @@ export function AgentApp() {
   const [regenerating, setRegenerating] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState(false)
+  // Inline notice on the picker, shown when a non-team user lands here with a
+  // pasted URL (the live-scrape path is gated to team members, so the backend
+  // would 403 demo_mode_only and the user would see a raw error otherwise).
+  const [demoNotice, setDemoNotice] = useState<string | null>(null)
 
   const pollIntervalRef = useRef<number | null>(null)
   const pollStartRef = useRef<number>(0)
@@ -91,37 +95,57 @@ export function AgentApp() {
       }
       setState({ screen: "storyboard", listing, phase1, overrides })
     } catch (err) {
-      setState({
-        screen: "error",
-        message: err instanceof Error ? err.message : "Failed to fetch listing.",
-      })
+      const message = err instanceof Error ? err.message : "Failed to fetch listing."
+      // Backend rejects non-fixture URLs for non-team users with this error.
+      // Surface as a picker-side notice rather than a stack-trace error screen.
+      if (message.includes("demo_mode_only")) {
+        setDemoNotice(
+          "You're in demo mode — live Airbnb scraping is team-only for now. Pick one of these listings to see how the agent thinks.",
+        )
+        setState({ screen: "idle" })
+      } else {
+        setState({ screen: "error", message })
+      }
     } finally {
       setSubmitting(false)
     }
   }
 
-  // Deep-link from the Landing CTA: /app?url=<encoded>. Fire once per mount
-  // when the URL param is present and we haven't already started a flow.
-  // queueMicrotask defers the state-flipping handleGenerate out of the effect
-  // body so the render commit completes first.
+  // Deep-link from the Landing CTA: /app?url=<encoded>. Wait for /api/me to
+  // resolve before acting — non-team users can't use the live-scrape path, so
+  // we'd otherwise just shove them into a preparing screen that resolves to a
+  // 403. Instead, intercept and route them to the picker with a friendly
+  // notice. queueMicrotask defers the state-flipping handleGenerate out of the
+  // effect body so the render commit completes first.
   useEffect(() => {
     if (deepLinkHandled.current) return
     const url = searchParams.get("url")
     if (!url) return
+    if (!me) return // wait for /api/me
+
     deepLinkHandled.current = true
     setSearchParams({}, { replace: true })
+
+    if (!me.is_team_member) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDemoNotice(
+        "You're in demo mode — live Airbnb scraping is team-only for now. Pick one of these listings to see how the agent thinks.",
+      )
+      return
+    }
+
     queueMicrotask(() => void handleGenerate(decodeURIComponent(url)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [me])
 
   async function handleRender(
     listing: ScrapedListing,
     phase1: Phase1Decision,
     overrides: Overrides,
   ) {
-    setSubmitting(true)
-    setScriptStep(0)
-    setElapsedSeconds(0)
+    // Optimistic flip into the loading screen — postGenerate (~30–60s) shouldn't
+    // leave the user staring at the storyboard form with a disabled button.
+    setState({ screen: "starting", listing, phase1, overrides })
     try {
       const { video_id, decision, internal_video_id } = await postGenerate(
         listingUrl,
@@ -143,8 +167,6 @@ export function AgentApp() {
         screen: "error",
         message: err instanceof Error ? err.message : "Failed to start generation.",
       })
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -227,26 +249,36 @@ export function AgentApp() {
     void navigator.clipboard.writeText(state.fileUrl)
   }
 
+  // Step indicator + elapsed timer. Starts when the user clicks Render
+  // (state="starting") and persists through the polling phase
+  // (state="generating") so the counter doesn't reset when postGenerate
+  // resolves and we transition starting→generating.
+  const isRendering = state.screen === "starting" || state.screen === "generating"
+  useEffect(() => {
+    if (!isRendering) return
+    pollStartRef.current = Date.now()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setScriptStep(1)
+    const step2Timer = window.setTimeout(() => setScriptStep(2), 1000)
+    const tick = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - pollStartRef.current) / 1000))
+    }, 1000)
+    return () => {
+      window.clearTimeout(step2Timer)
+      window.clearInterval(tick)
+    }
+  }, [isRendering])
+
   useEffect(() => {
     if (state.screen !== "generating") return
     const { videoId, listing, phase1, overrides, decision, internalVideoId } = state
 
     let cancelled = false
-    pollStartRef.current = Date.now()
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setScriptStep(1)
-    const step2Timer = window.setTimeout(() => {
-      if (!cancelled) setScriptStep(2)
-    }, 1000)
 
     async function doPoll() {
       if (cancelled) return
 
-      const elapsed = Date.now() - pollStartRef.current
-      setElapsedSeconds(Math.floor(elapsed / 1000))
-
-      if (elapsed >= POLL_TIMEOUT_MS) {
+      if (Date.now() - pollStartRef.current >= POLL_TIMEOUT_MS) {
         clearPolling()
         if (!cancelled) {
           setState({ screen: "error", message: "Generation timed out after 3 minutes." })
@@ -305,7 +337,6 @@ export function AgentApp() {
     return () => {
       cancelled = true
       clearPolling()
-      window.clearTimeout(step2Timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.screen === "generating" ? state.videoId : null])
@@ -398,10 +429,22 @@ export function AgentApp() {
             )}
           </div>
 
+          {demoNotice ? (
+            <div
+              role="status"
+              className="w-full max-w-3xl rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-body-sm text-foreground"
+            >
+              {demoNotice}
+            </div>
+          ) : null}
+
           {demoMode && me ? (
             <DemoListingPicker
               listings={me.demo_listings}
-              onPick={handleGenerate}
+              onPick={(url) => {
+                setDemoNotice(null)
+                void handleGenerate(url)
+              }}
               loading={submitting}
               exclusive={!isTeam}
             />
@@ -438,8 +481,8 @@ export function AgentApp() {
         />
       )}
 
-      {/* generating */}
-      {state.screen === "generating" && (
+      {/* starting (postGenerate in flight) + generating (polling Hera) — same UI */}
+      {(state.screen === "starting" || state.screen === "generating") && (
         <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-8 px-6 py-16">
           <div className="flex flex-col items-center gap-2 text-center">
             <p className="text-label text-muted-foreground">In progress</p>
