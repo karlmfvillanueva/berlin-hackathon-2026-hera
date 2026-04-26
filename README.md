@@ -83,7 +83,7 @@ flowchart LR
 
 A two-phase pipeline: **Phase 1** (cheap, ~10s) returns a storyboard the host can approve or override. **Phase 2** (heavy, then Hera ~3min) renders the final film once the host clicks generate.
 
-![Stage 1 of the agent pipeline — ICP, Location, Reviews running in parallel, then Visual System, Photo Analyser, Final Assembly](docs/readme/agents-stage1.png)
+![Stage 1 of the agent pipeline — ICP, Location, Reviews running in parallel, then Visual System, Photo Analyser, Final Assembly](docs/readme/agents-stage1.jpg)
 
 ### Request flow
 
@@ -127,7 +127,7 @@ sequenceDiagram
 
 The host can drill into every pass live in the app. The system is fully introspectable.
 
-![Under the hood — React Frontend and FastAPI Backend cards expanded with their dependencies](docs/readme/under-the-hood.png)
+![Under the hood — React Frontend and FastAPI Backend cards expanded with their dependencies](docs/readme/under-the-hood.jpg)
 
 | Layer | Tech | Why |
 |---|---|---|
