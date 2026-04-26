@@ -138,6 +138,16 @@ export type AppState =
       overrides: Overrides;
     }
   | {
+      // Optimistic transition between Storyboard's render click and the
+      // postGenerate response. Visually identical to "generating" so the
+      // user sees the loading screen the instant they click — without this,
+      // they sit on the storyboard form for ~30–60s while phase 2 runs.
+      screen: "starting";
+      listing: ScrapedListing;
+      phase1: Phase1Decision;
+      overrides: Overrides;
+    }
+  | {
       screen: "generating";
       listing: ScrapedListing;
       phase1: Phase1Decision;
