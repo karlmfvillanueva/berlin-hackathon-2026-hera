@@ -9,7 +9,10 @@ export type AuthContextValue = {
   configured: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (email: string, password: string) => Promise<{ error: string | null }>
-  signInWithGoogle: () => Promise<{ error: string | null }>
+  /** `redirectPath` is appended to window.location.origin to build the OAuth
+   *  redirectTo. Defaults to "/dashboard". Pass the deep link target when the
+   *  user came from a protected route so the path survives the round-trip. */
+  signInWithGoogle: (redirectPath?: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -25,14 +28,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     let mounted = true
-    supabase.auth.getSession().then(({ data }) => {
-      if (mounted) {
-        setSession(data.session)
-        setLoading(false)
-      }
-    })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next)
+    // We rely solely on onAuthStateChange — supabase-js v2 fires INITIAL_SESSION
+    // AFTER the PKCE code in the URL has been exchanged, which the previous
+    // getSession() race lost: getSession resolved with null before the exchange
+    // finished, ProtectedRoute redirected to /login, and the now-stale ?code=
+    // in the URL got re-tried (and failed) on the way back. One subscription
+    // handles initial recover-from-storage, URL-detect, and live updates.
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!mounted) return
+      setSession(nextSession)
+      setLoading(false)
     })
     return () => {
       mounted = false
@@ -52,11 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null }
   }
 
-  const signInWithGoogle: AuthContextValue["signInWithGoogle"] = async () => {
+  const signInWithGoogle: AuthContextValue["signInWithGoogle"] = async (
+    redirectPath = "/dashboard",
+  ) => {
     if (!isSupabaseConfigured) return { error: "Auth not configured" }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      options: { redirectTo: `${window.location.origin}${redirectPath}` },
     })
     return { error: error?.message ?? null }
   }

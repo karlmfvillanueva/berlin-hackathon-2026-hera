@@ -42,7 +42,7 @@ export function Signup() {
 
   async function onGoogle() {
     setError(null)
-    const { error } = await signInWithGoogle()
+    const { error } = await signInWithGoogle(from)
     if (error) setError(error)
   }
 
