@@ -100,20 +100,22 @@ async def _scrape_via_scraperapi(url: str) -> ScrapedListing | None:
     """ScraperAPI fallback. Fetches rendered HTML via their proxy pool, then
     re-uses the same Playwright-based extractors via `page.set_content()`.
 
-    Airbnb is anti-bot-hardened, so we always pass `ultra_premium=true` —
-    that's expensive (30 credits/req), but standard premium misses ~all the
-    time on listing pages."""
+    `render=true` (5 credits/req) is in the free tier; `ultra_premium=true`
+    (30 credits/req) is paid-only and reliably needed for Airbnb's bot wall —
+    keep it OFF by default, flip via SCRAPERAPI_ULTRA_PREMIUM=true if the
+    account has been upgraded. Free tier still gets through some listings."""
     api_key = os.getenv("SCRAPERAPI_KEY")
     if not api_key:
         return None
 
-    params = {
+    params: dict[str, str] = {
         "api_key": api_key,
         "url": url,
         "render": "true",
-        "ultra_premium": "true",
         "country_code": "us",
     }
+    if os.getenv("SCRAPERAPI_ULTRA_PREMIUM", "false").lower() == "true":
+        params["ultra_premium"] = "true"
     try:
         async with httpx.AsyncClient(timeout=_SCRAPERAPI_TIMEOUT_S) as client:
             r = await client.get(_SCRAPERAPI_URL, params=params)

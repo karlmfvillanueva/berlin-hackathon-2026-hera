@@ -9,7 +9,11 @@ dependencies = [
     "httpx>=0.27",
     "pydantic>=2.9",
     "python-dotenv>=1.0",
-    "playwright>=1.49",
+    # Pinned to 1.49.x because the Docker base image is
+    # mcr.microsoft.com/playwright/python:v1.49.0-noble — bumping the Python
+    # package without bumping the image leaves Chromium binaries missing and
+    # every BrowserType.launch() crashes with "Executable doesn't exist".
+    "playwright>=1.49,<1.50",
     "google-genai>=0.8",
     "supabase>=2.9",
     "pyjwt[crypto]>=2.9",
