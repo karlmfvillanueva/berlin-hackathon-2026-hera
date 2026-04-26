@@ -70,6 +70,24 @@ export function Storyboard({
     return map
   }, [overrides.emphasis, overrides.deemphasis])
 
+  // Track which sections the user has overridden, so labels can switch from
+  // "Suggested" to "Picked" and a single Reset button surfaces only when relevant.
+  const overrideFlags = useMemo(() => {
+    return {
+      language: overrides.language !== phase1.suggested_language,
+      tone: overrides.tone !== phase1.suggested_tone,
+      emphasis:
+        overrides.emphasis.length > 0 || overrides.deemphasis.length > 0,
+      hook: overrides.hook_id !== "auto",
+    }
+  }, [overrides, phase1.suggested_language, phase1.suggested_tone])
+
+  const overrideCount =
+    Number(overrideFlags.language) +
+    Number(overrideFlags.tone) +
+    Number(overrideFlags.emphasis) +
+    Number(overrideFlags.hook)
+
   function cycleEmphasis(slug: string) {
     const current = emphasisState[slug] ?? "neutral"
     const next: EmphasisState = current === "neutral" ? "up" : current === "up" ? "down" : "neutral"
@@ -106,68 +124,101 @@ export function Storyboard({
     ? phase1.emphasis_options
     : phase1.emphasis_options.slice(0, 8)
 
-  const tonePreset = TONES.find((t) => t.key === overrides.tone)
+  const upCount = overrides.emphasis.length
+  const downCount = overrides.deemphasis.length
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-6 py-12">
-      <header className="flex flex-col gap-2">
-        <p className="text-label text-muted-foreground">Storyboard plan ready</p>
+      <header className="flex flex-col gap-3">
+        <p className="text-label text-muted-foreground">Storyboard plan · ready</p>
         <h2 className="text-display-lg">Approve, or steer it.</h2>
         <p className="text-body max-w-prose text-muted-foreground">
           {listing.title} · {listing.location}. The agent committed to a
-          direction below — change anything you want, then render. Render takes
-          ~3 minutes.
+          direction below. Change anything you want, then render — takes ~3 minutes.
         </p>
+        {overrideCount > 0 && (
+          <div className="flex items-center gap-3 pt-1">
+            <Badge variant="outline" className="border-foreground/30">
+              {overrideCount} change{overrideCount === 1 ? "" : "s"} from defaults
+            </Badge>
+            <button
+              type="button"
+              onClick={reset}
+              className="text-label text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Reset to agent defaults
+            </button>
+          </div>
+        )}
       </header>
 
       <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-display-md">Output language</h3>
-          <span className="text-label text-muted-foreground">
-            Detected: {phase1.suggested_language.toUpperCase()}
-          </span>
+          <SectionMeta
+            suggested={phase1.suggested_language.toUpperCase()}
+            overridden={overrideFlags.language}
+          />
         </div>
         <div className="inline-flex w-fit gap-1 rounded-md border border-border bg-muted p-1">
-          {LANGUAGES.map((lang) => (
-            <button
-              key={lang.code}
-              type="button"
-              onClick={() => setLanguage(lang.code)}
-              className={cn(
-                "rounded-sm px-4 py-1.5 text-label transition-colors",
-                overrides.language === lang.code
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {lang.label}
-            </button>
-          ))}
+          {LANGUAGES.map((lang) => {
+            const active = overrides.language === lang.code
+            const isSuggested = lang.code === phase1.suggested_language
+            return (
+              <button
+                key={lang.code}
+                type="button"
+                onClick={() => setLanguage(lang.code)}
+                aria-pressed={active}
+                className={cn(
+                  "relative rounded-sm px-4 py-1.5 text-label transition-colors",
+                  active
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {lang.label}
+                {isSuggested && !active && (
+                  <span className="ml-1.5 text-[10px] uppercase tracking-wider opacity-70">
+                    suggested
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </section>
 
       <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-display-md">Tone preset</h3>
-          <span className="text-label text-muted-foreground">
-            Suggested: {phase1.suggested_tone}
-          </span>
+          <SectionMeta
+            suggested={phase1.suggested_tone}
+            overridden={overrideFlags.tone}
+          />
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {TONES.map((tone) => {
             const active = overrides.tone === tone.key
+            const isSuggested = tone.key === phase1.suggested_tone
             return (
               <button
                 key={tone.key}
                 type="button"
                 onClick={() => setTone(tone.key)}
+                aria-pressed={active}
                 className={cn(
-                  "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors",
+                  "relative flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors",
                   active
                     ? "border-foreground bg-foreground text-background"
                     : "border-border bg-background hover:border-foreground/50",
                 )}
               >
+                {isSuggested && !active && (
+                  <span className="absolute right-2 top-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    suggested
+                  </span>
+                )}
                 <span className="text-label">{tone.label}</span>
                 <span
                   className={cn(
@@ -181,18 +232,15 @@ export function Storyboard({
             )
           })}
         </div>
-        {tonePreset && (
-          <p className="text-body-sm italic text-muted-foreground">
-            Picked tone overrides the visual_system suggestion if they conflict.
-          </p>
-        )}
       </section>
 
       <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-display-md">Emphasis</h3>
           <span className="text-label text-muted-foreground">
-            Click to cycle: ↑ feature · ↓ downplay · neutral
+            {upCount + downCount === 0
+              ? "Click to cycle: ↑ feature · ↓ downplay · neutral"
+              : `${upCount} featured${downCount > 0 ? ` · ${downCount} downplayed` : ""}`}
           </span>
         </div>
         {phase1.emphasis_options.length === 0 ? (
@@ -209,6 +257,7 @@ export function Storyboard({
                   key={opt.slug}
                   type="button"
                   onClick={() => cycleEmphasis(opt.slug)}
+                  aria-pressed={state !== "neutral"}
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-label transition-colors",
                     state === "up" &&
@@ -243,17 +292,18 @@ export function Storyboard({
       </section>
 
       <section className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-display-md">Opening hook</h3>
-          <span className="text-label text-muted-foreground">
-            Default: Auto (let the agent decide)
-          </span>
+          <SectionMeta
+            suggested="Auto"
+            overridden={overrideFlags.hook}
+          />
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <HookCard
             id="auto"
             label="Auto"
-            kind="—"
+            kind="Default"
             rationale="Let the Strategic Opinion Agent pick the strongest hook from the listing data."
             active={overrides.hook_id === "auto"}
             onSelect={() => setHookId("auto")}
@@ -272,20 +322,36 @@ export function Storyboard({
         </div>
       </section>
 
-      <footer className="flex flex-col-reverse items-center gap-3 pt-4 sm:flex-row sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Button onClick={onBack} variant="outline">
-            Back
-          </Button>
-          <Button onClick={reset} variant="link" className="text-muted-foreground">
-            Reset to agent defaults
-          </Button>
-        </div>
-        <Button onClick={onRender} disabled={submitting} size="lg">
-          {submitting ? "Starting render…" : "Render with these choices (~3 min)"}
+      <footer className="sticky bottom-4 z-10 mt-4 flex flex-col-reverse items-center gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-sm backdrop-blur sm:flex-row sm:justify-between">
+        <Button onClick={onBack} variant="ghost">
+          ← Back
+        </Button>
+        <Button onClick={onRender} disabled={submitting} size="lg" className="min-w-[260px]">
+          {submitting ? "Starting render…" : "Render with these choices · ~3 min"}
         </Button>
       </footer>
     </main>
+  )
+}
+
+function SectionMeta({
+  suggested,
+  overridden,
+}: {
+  suggested: string
+  overridden: boolean
+}) {
+  return (
+    <span className="flex items-center gap-2">
+      <span className="text-label text-muted-foreground">
+        Suggested: <span className="font-medium uppercase">{suggested}</span>
+      </span>
+      {overridden && (
+        <Badge variant="outline" className="border-foreground/40 text-[10px]">
+          Adjusted
+        </Badge>
+      )}
+    </span>
   )
 }
 
