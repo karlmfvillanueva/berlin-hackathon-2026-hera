@@ -4,6 +4,7 @@ Hera reference: https://docs.hera.video/api-reference/introduction
 The frontend never sees HERA_API_KEY — it stays on the server.
 """
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Literal
@@ -60,10 +61,13 @@ async def lifespan(_: FastAPI):
         log.warning("GCP_PROJECT is not set — Gemini classifier + outpainter will fail")
     else:
         log.info("Vertex AI: project=%s location=%s", GCP_PROJECT, GCP_LOCATION)
+    # Explicit per-stage timeouts. Connect is short so a dead route fails fast
+    # (we'd rather retry); read is generous because Hera occasionally takes
+    # 60-90s to acknowledge a POST under load.
     app.state.http = httpx.AsyncClient(
         base_url=HERA_BASE_URL,
         headers={"x-api-key": HERA_API_KEY, "content-type": "application/json"},
-        timeout=30.0,
+        timeout=httpx.Timeout(connect=15.0, read=60.0, write=15.0, pool=5.0),
     )
     log.info("Backend ready. Hera base=%s", HERA_BASE_URL)
     try:
@@ -140,6 +144,40 @@ class GetVideoResponse(BaseModel):
     project_url: str | None = None
     status: JobStatus
     outputs: list[VideoOutputResult] = []
+
+
+# --- Hera POST helper ---
+
+
+async def _post_hera_videos_with_retry(payload: dict) -> httpx.Response:
+    """POST /videos with bounded retries on transient connect failures.
+
+    A ConnectTimeout / ConnectError means the request never reached Hera — safe
+    to retry, no risk of duplicate renders. ReadTimeout and HTTP errors are NOT
+    retried because the server may have started processing the request.
+
+    Backoff: 2s, 4s. Three total attempts.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            return await app.state.http.post("/videos", json=payload)
+        except (httpx.ConnectTimeout, httpx.ConnectError) as exc:
+            last_exc = exc
+            if attempt < 2:
+                wait = 2 * (attempt + 1)
+                log.warning(
+                    "hera POST /videos transient failure attempt=%d/3 wait=%ds err=%s",
+                    attempt + 1,
+                    wait,
+                    type(exc).__name__,
+                )
+                await asyncio.sleep(wait)
+                continue
+            log.error("hera POST /videos exhausted retries err=%s", type(exc).__name__)
+            raise
+    assert last_exc is not None  # mypy
+    raise last_exc
 
 
 # --- Routes ---
@@ -242,7 +280,7 @@ async def create_video(
     log.info("Creating Hera video job, prompt_chars=%d", len(body.prompt))
     payload = body.model_dump(exclude_none=True)
     try:
-        r = await app.state.http.post("/videos", json=payload)
+        r = await _post_hera_videos_with_retry(payload)
     except httpx.HTTPError as exc:
         log.exception("Hera request failed")
         raise HTTPException(status_code=502, detail=f"Hera unreachable: {exc}") from exc
@@ -362,7 +400,7 @@ async def generate_video(
         body.overrides.tone,
     )
     try:
-        r = await app.state.http.post("/videos", json=payload)
+        r = await _post_hera_videos_with_retry(payload)
     except httpx.HTTPError as exc:
         log.exception("generate: Hera unreachable")
         raise HTTPException(
@@ -444,7 +482,7 @@ async def regenerate_video(
         len(image_assets),
     )
     try:
-        r = await app.state.http.post("/videos", json=payload)
+        r = await _post_hera_videos_with_retry(payload)
     except httpx.HTTPError as exc:
         log.exception("regenerate: Hera unreachable")
         raise HTTPException(
