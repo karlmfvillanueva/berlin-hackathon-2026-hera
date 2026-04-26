@@ -16,8 +16,10 @@ The fixture loader stays the default; live scraping is opt-in for the demo.
 from __future__ import annotations
 
 import json
+import os
 import re
 
+import httpx
 from playwright.async_api import Page, async_playwright
 
 from src.agent.models import Photo, ScrapedListing
@@ -31,10 +33,35 @@ _USER_AGENT = (
 _NAV_TIMEOUT_MS = 30_000
 _SETTLE_MS = 4_000
 
+_SCRAPERAPI_URL = "https://api.scraperapi.com/"
+_SCRAPERAPI_TIMEOUT_S = 90.0  # ultra_premium can take 30–60 s; give headroom
+
 
 async def scrape_listing(url: str) -> ScrapedListing | None:
-    """Headless scrape. Returns None on every failure path."""
+    """Live scrape with two-tier strategy:
+      1. Direct Playwright from this container's IP (fast, free, but Airbnb
+         blocks Railway-class datacenter IPs via Cloudflare/PerimeterX).
+      2. ScraperAPI fallback — they render the page from a residential proxy
+         pool, return the rendered HTML, we feed it back into Playwright's
+         `set_content()` so the existing JSON-LD/OG/DOM extractors stay reused.
+
+    Returns None on every failure path so the caller raises 503, never 500.
+    """
     log.info("scraper: starting url=%s", url)
+    listing = await _scrape_via_playwright(url)
+    if listing is not None:
+        return listing
+
+    if os.getenv("SCRAPERAPI_KEY"):
+        log.info("scraper: playwright miss → ScraperAPI fallback url=%s", url)
+        return await _scrape_via_scraperapi(url)
+
+    log.info("scraper: playwright miss + no SCRAPERAPI_KEY → giving up url=%s", url)
+    return None
+
+
+async def _scrape_via_playwright(url: str) -> ScrapedListing | None:
+    """Direct Playwright path. None on any failure (timeout, anti-bot, parse)."""
     try:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
@@ -49,38 +76,110 @@ async def scrape_listing(url: str) -> ScrapedListing | None:
                 await page.wait_for_timeout(_SETTLE_MS)
 
                 if "/rooms/" not in page.url:
-                    log.warning("scraper: redirected off listing url=%s final=%s", url, page.url)
+                    log.warning(
+                        "playwright: redirected off listing url=%s final=%s", url, page.url
+                    )
                     return None
 
-                ld = await _read_json_ld(page)
-                og = await _read_og_tags(page)
-                dom_photos = await _read_dom_photos(page)
-                review_quotes = await _read_review_quotes(page)
-                review_tags = await _read_review_tags(page)
-
-                listing = _assemble(url, ld, og, dom_photos, review_quotes, review_tags)
+                listing = await _extract_from_page(page, url)
                 if listing is None:
-                    log.warning("scraper: could not assemble listing url=%s", url)
+                    log.warning("playwright: could not assemble listing url=%s", url)
                     return None
 
-                log.info(
-                    "scraper: ok title=%r photos=%d desc_chars=%d "
-                    "review_quotes=%d review_tags=%d rating=%s reviews_count=%s",
-                    listing.title[:60],
-                    len(listing.photos),
-                    len(listing.description),
-                    len(listing.review_quotes),
-                    len(listing.review_tags),
-                    listing.rating_overall,
-                    listing.reviews_count,
-                )
+                _log_listing("playwright", listing)
                 return listing
             finally:
                 await context.close()
                 await browser.close()
     except Exception as exc:
-        log.exception("scraper: failed url=%s reason=%s", url, exc)
+        log.exception("playwright: failed url=%s reason=%s", url, exc)
         return None
+
+
+async def _scrape_via_scraperapi(url: str) -> ScrapedListing | None:
+    """ScraperAPI fallback. Fetches rendered HTML via their proxy pool, then
+    re-uses the same Playwright-based extractors via `page.set_content()`.
+
+    Airbnb is anti-bot-hardened, so we always pass `ultra_premium=true` —
+    that's expensive (30 credits/req), but standard premium misses ~all the
+    time on listing pages."""
+    api_key = os.getenv("SCRAPERAPI_KEY")
+    if not api_key:
+        return None
+
+    params = {
+        "api_key": api_key,
+        "url": url,
+        "render": "true",
+        "ultra_premium": "true",
+        "country_code": "us",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=_SCRAPERAPI_TIMEOUT_S) as client:
+            r = await client.get(_SCRAPERAPI_URL, params=params)
+    except Exception as exc:
+        log.exception("scraperapi: request failed url=%s reason=%s", url, exc)
+        return None
+
+    if r.status_code != 200:
+        log.warning("scraperapi: %d body=%s url=%s", r.status_code, r.text[:200], url)
+        return None
+
+    html = r.text
+    if not html or "/rooms/" not in r.text and "VacationRental" not in r.text:
+        log.warning("scraperapi: response looks empty/blocked url=%s len=%d", url, len(html))
+        return None
+
+    try:
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(headless=True)
+            context = await browser.new_context(
+                user_agent=_USER_AGENT,
+                viewport={"width": 1280, "height": 900},
+                locale="en-US",
+            )
+            page = await context.new_page()
+            try:
+                await page.set_content(html, wait_until="domcontentloaded")
+                listing = await _extract_from_page(page, url)
+                if listing is None:
+                    log.warning("scraperapi: could not assemble listing url=%s", url)
+                    return None
+
+                _log_listing("scraperapi", listing)
+                return listing
+            finally:
+                await context.close()
+                await browser.close()
+    except Exception as exc:
+        log.exception("scraperapi: parse failed url=%s reason=%s", url, exc)
+        return None
+
+
+async def _extract_from_page(page: Page, url: str) -> ScrapedListing | None:
+    """Run all extractors against a loaded Page (regardless of source) and
+    assemble. Centralised so Playwright + ScraperAPI paths stay symmetric."""
+    ld = await _read_json_ld(page)
+    og = await _read_og_tags(page)
+    dom_photos = await _read_dom_photos(page)
+    review_quotes = await _read_review_quotes(page)
+    review_tags = await _read_review_tags(page)
+    return _assemble(url, ld, og, dom_photos, review_quotes, review_tags)
+
+
+def _log_listing(source: str, listing: ScrapedListing) -> None:
+    log.info(
+        "%s: ok title=%r photos=%d desc_chars=%d "
+        "review_quotes=%d review_tags=%d rating=%s reviews_count=%s",
+        source,
+        listing.title[:60],
+        len(listing.photos),
+        len(listing.description),
+        len(listing.review_quotes),
+        len(listing.review_tags),
+        listing.rating_overall,
+        listing.reviews_count,
+    )
 
 
 # ---------------------------------------------------------------------------
