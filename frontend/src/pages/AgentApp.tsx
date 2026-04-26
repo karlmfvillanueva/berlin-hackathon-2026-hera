@@ -53,6 +53,10 @@ export function AgentApp() {
   const [regenerating, setRegenerating] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState(false)
+  // Inline notice on the picker, shown when a non-team user lands here with a
+  // pasted URL (the live-scrape path is gated to team members, so the backend
+  // would 403 demo_mode_only and the user would see a raw error otherwise).
+  const [demoNotice, setDemoNotice] = useState<string | null>(null)
 
   const pollIntervalRef = useRef<number | null>(null)
   const pollStartRef = useRef<number>(0)
@@ -91,28 +95,48 @@ export function AgentApp() {
       }
       setState({ screen: "storyboard", listing, phase1, overrides })
     } catch (err) {
-      setState({
-        screen: "error",
-        message: err instanceof Error ? err.message : "Failed to fetch listing.",
-      })
+      const message = err instanceof Error ? err.message : "Failed to fetch listing."
+      // Backend rejects non-fixture URLs for non-team users with this error.
+      // Surface as a picker-side notice rather than a stack-trace error screen.
+      if (message.includes("demo_mode_only")) {
+        setDemoNotice(
+          "You're in demo mode — live Airbnb scraping is team-only for now. Pick one of these listings to see how the agent thinks.",
+        )
+        setState({ screen: "idle" })
+      } else {
+        setState({ screen: "error", message })
+      }
     } finally {
       setSubmitting(false)
     }
   }
 
-  // Deep-link from the Landing CTA: /app?url=<encoded>. Fire once per mount
-  // when the URL param is present and we haven't already started a flow.
-  // queueMicrotask defers the state-flipping handleGenerate out of the effect
-  // body so the render commit completes first.
+  // Deep-link from the Landing CTA: /app?url=<encoded>. Wait for /api/me to
+  // resolve before acting — non-team users can't use the live-scrape path, so
+  // we'd otherwise just shove them into a preparing screen that resolves to a
+  // 403. Instead, intercept and route them to the picker with a friendly
+  // notice. queueMicrotask defers the state-flipping handleGenerate out of the
+  // effect body so the render commit completes first.
   useEffect(() => {
     if (deepLinkHandled.current) return
     const url = searchParams.get("url")
     if (!url) return
+    if (!me) return // wait for /api/me
+
     deepLinkHandled.current = true
     setSearchParams({}, { replace: true })
+
+    if (!me.is_team_member) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDemoNotice(
+        "You're in demo mode — live Airbnb scraping is team-only for now. Pick one of these listings to see how the agent thinks.",
+      )
+      return
+    }
+
     queueMicrotask(() => void handleGenerate(decodeURIComponent(url)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [me])
 
   async function handleRender(
     listing: ScrapedListing,
@@ -405,10 +429,22 @@ export function AgentApp() {
             )}
           </div>
 
+          {demoNotice ? (
+            <div
+              role="status"
+              className="w-full max-w-3xl rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-body-sm text-foreground"
+            >
+              {demoNotice}
+            </div>
+          ) : null}
+
           {demoMode && me ? (
             <DemoListingPicker
               listings={me.demo_listings}
-              onPick={handleGenerate}
+              onPick={(url) => {
+                setDemoNotice(null)
+                void handleGenerate(url)
+              }}
               loading={submitting}
               exclusive={!isTeam}
             />
