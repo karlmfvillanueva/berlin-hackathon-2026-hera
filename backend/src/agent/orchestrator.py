@@ -18,6 +18,7 @@ AgentDecision ready for Hera submission. Expensive (~10s + Hera 3 min):
 
 from __future__ import annotations
 
+import asyncio
 import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -488,7 +489,15 @@ async def run_render_from_plan(
     beliefs = fetch_beliefs(limit=10)
     scrape = _listing_to_scrape_document(listing)
 
-    photo = analyse_photos(
+    # analyse_photos + assemble_strategic_hera_prompt are sync Vertex AI calls
+    # (~50s each). Inside an async coroutine, calling them directly blocks the
+    # event loop — fine for the old sync /api/generate, but breaks the new
+    # async-job kickoff because the response handler can't run while phase 2
+    # is hogging the loop. asyncio.to_thread offloads them to the default
+    # ThreadPoolExecutor so other coroutines (response sending, /api/jobs
+    # polling) keep flowing.
+    photo = await asyncio.to_thread(
+        analyse_photos,
         scrape,
         icp,
         location,
@@ -509,7 +518,8 @@ async def run_render_from_plan(
         selected_image_urls,
         duration_seconds,
         judge_meta,
-    ) = assemble_strategic_hera_prompt(
+    ) = await asyncio.to_thread(
+        assemble_strategic_hera_prompt,
         listing=listing,
         icp=icp,
         location_enrichment=location,

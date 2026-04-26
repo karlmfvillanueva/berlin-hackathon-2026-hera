@@ -7,6 +7,7 @@ The frontend never sees HERA_API_KEY — it stays on the server.
 import asyncio
 import os
 import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Literal
 
@@ -23,10 +24,8 @@ from src import belief_evolution as belief_evo
 from src import youtube as yt_lib
 from src.agent import (
     GenerateRequest,
-    GenerateResponse,
     ListingResponse,
     RegenerateRequest,
-    RegenerateResponse,
     load_fixture,
     run_render_from_plan,
     run_storyboard_plan,
@@ -70,6 +69,11 @@ async def lifespan(_: FastAPI):
         headers={"x-api-key": HERA_API_KEY, "content-type": "application/json"},
         timeout=httpx.Timeout(connect=15.0, read=60.0, write=15.0, pool=5.0),
     )
+    # In-memory job tracker for the async generate flow. Maps internal_video_id
+    # → {state, stage, hera_video_id, decision, file_url, error, created_at}.
+    # Survives within one process; Railway restart loses in-flight jobs (user
+    # would see them as stuck and can re-render). Single-instance assumption.
+    app.state.jobs: dict[str, dict[str, Any]] = {}
     log.info("Backend ready. Hera base=%s", HERA_BASE_URL)
     try:
         yield
@@ -145,6 +149,37 @@ class GetVideoResponse(BaseModel):
     project_url: str | None = None
     status: JobStatus
     outputs: list[VideoOutputResult] = []
+
+
+# Async generate: states and response shapes.
+#   planning  — phase 2 + Hera POST in flight (background task)
+#   rendering — Hera accepted, render in progress (background polls Hera)
+#   success   — render complete, file_url available
+#   failed    — any step blew up; `error` set
+JobState = Literal["planning", "rendering", "success", "failed"]
+
+
+class GenerateAcceptedResponse(BaseModel):
+    """Returned immediately from POST /api/generate. The heavy work (phase 2 +
+    Hera POST + render) runs as a background task. Frontend polls
+    GET /api/jobs/{internal_video_id} for progression."""
+
+    internal_video_id: str
+    state: JobState
+
+
+class JobStatusResponse(BaseModel):
+    """Unified status of one generate job. Combines our local phase state with
+    a passthrough of Hera's render status when relevant. All fields except
+    `internal_video_id` and `state` fill in as the job progresses."""
+
+    internal_video_id: str
+    state: JobState
+    stage: str  # human-readable, e.g. 'phase2', 'hera_post', 'rendering'
+    hera_video_id: str | None = None
+    decision: dict[str, Any] | None = None
+    file_url: str | None = None
+    error: str | None = None
 
 
 # --- Hera POST helper ---
@@ -406,46 +441,62 @@ async def get_listing(
     return ListingResponse(listing=listing, phase1=phase1)
 
 
-@app.post("/api/generate", response_model=GenerateResponse)
-@limiter.limit(LIMIT_GENERATE)
-async def generate_video(
-    request: Request,  # noqa: ARG001 — required by slowapi
-    body: GenerateRequest,
-    user: CurrentUser,
-) -> GenerateResponse:
-    """Phase 2: run the heavy agents with user overrides, then submit to Hera."""
+async def _run_phase2_job(
+    internal_id: str,
+    listing_url: str,
+    listing: Any,
+    phase1: Any,
+    overrides: Any,
+    user_id: str,
+) -> None:
+    """Background worker for the async /api/generate flow. Runs phase 2, posts
+    to Hera, persists the video row. All progress is reflected in
+    app.state.jobs[internal_id] so GET /api/jobs/{id} can return the live state.
+
+    Errors are caught and surfaced as state='failed' rather than re-raised — the
+    background task has no caller to receive an exception."""
+    job = app.state.jobs.get(internal_id)
+    if job is None:
+        return  # cancelled/cleaned up before we started
+
     gen_start = time.monotonic()
     log.info(
-        "generate: START listing_url=%s lang=%s tone=%s emphasis=%d hook=%s outpaint=%s",
-        body.listing_url,
-        body.overrides.language,
-        body.overrides.tone,
-        len(body.overrides.emphasis),
-        body.overrides.hook_id,
-        body.phase1.outpaint_enabled,
+        "job %s: START listing_url=%s lang=%s tone=%s emphasis=%d hook=%s outpaint=%s",
+        internal_id,
+        listing_url,
+        overrides.language,
+        overrides.tone,
+        len(overrides.emphasis),
+        overrides.hook_id,
+        phase1.outpaint_enabled,
     )
+
+    # --- Phase 2 ---
+    job["stage"] = "phase2"
     phase2_start = time.monotonic()
     try:
-        decision = await run_render_from_plan(body.listing, body.phase1, body.overrides)
-    except Exception as exc:
+        decision = await run_render_from_plan(listing, phase1, overrides)
+    except Exception as exc:  # noqa: BLE001
         log.exception(
-            "generate: phase2 pipeline failed elapsed=%.1fs",
+            "job %s: phase2 pipeline failed elapsed=%.1fs",
+            internal_id,
             time.monotonic() - phase2_start,
         )
-        raise HTTPException(
-            status_code=500,
-            detail={"error": "render_pipeline_failed", "message": str(exc)},
-        ) from exc
+        job["state"] = "failed"
+        job["error"] = f"render_pipeline_failed: {exc}"
+        return
     phase2_elapsed = time.monotonic() - phase2_start
     log.info(
-        "generate: phase2 done elapsed=%.1fs prompt_chars=%d images=%d",
+        "job %s: phase2 done elapsed=%.1fs prompt_chars=%d images=%d",
+        internal_id,
         phase2_elapsed,
         len(decision.hera_prompt),
         len(decision.selected_image_urls),
     )
+    job["decision"] = decision.model_dump()
 
-    # Hera's reference_image_urls is for brand/style references (logo, palette).
-    # Listing content photos go in assets[] with type=image.
+    # --- Hera POST ---
+    job["stage"] = "hera_post"
     image_assets = [{"type": "image", "url": u} for u in decision.selected_image_urls[:5]]
     payload = {
         "prompt": decision.hera_prompt,
@@ -454,136 +505,274 @@ async def generate_video(
         "assets": image_assets,
     }
     log.info(
-        "generate: submitting to Hera. prompt_chars=%d images=%d lang=%s tone=%s",
+        "job %s: submitting to Hera. prompt_chars=%d images=%d lang=%s tone=%s",
+        internal_id,
         len(decision.hera_prompt),
         len(image_assets),
-        body.overrides.language,
-        body.overrides.tone,
+        overrides.language,
+        overrides.tone,
     )
     hera_post_start = time.monotonic()
     try:
         r = await _post_hera_videos_with_retry(payload)
     except httpx.HTTPError as exc:
         log.exception(
-            "generate: Hera unreachable elapsed=%.1fs total=%.1fs",
+            "job %s: Hera unreachable elapsed=%.1fs total=%.1fs",
+            internal_id,
             time.monotonic() - hera_post_start,
             time.monotonic() - gen_start,
         )
-        raise HTTPException(
-            status_code=502,
-            detail={"error": "hera_unreachable", "message": str(exc)},
-        ) from exc
+        job["state"] = "failed"
+        job["error"] = f"hera_unreachable: {exc}"
+        return
     hera_post_elapsed = time.monotonic() - hera_post_start
 
     if r.status_code >= 400:
         log.error(
-            "generate: Hera POST /videos %d elapsed=%.1fs body=%s",
+            "job %s: Hera POST /videos %d elapsed=%.1fs body=%s",
+            internal_id,
             r.status_code,
             hera_post_elapsed,
             r.text[:500],
         )
-        raise HTTPException(
-            status_code=500,
-            detail={"error": "hera_submission_failed", "message": r.text[:300]},
-        )
+        job["state"] = "failed"
+        job["error"] = f"hera_submission_failed: {r.text[:300]}"
+        return
 
     hera_response = r.json()
-    video_id = hera_response["video_id"]
+    hera_video_id = hera_response["video_id"]
+    job["hera_video_id"] = hera_video_id
+    job["state"] = "rendering"
+    job["stage"] = "rendering"
     log.info(
-        "generate: Hera accepted video_id=%s hera_elapsed=%.1fs",
-        video_id,
+        "job %s: Hera accepted video_id=%s hera_elapsed=%.1fs",
+        internal_id,
+        hera_video_id,
         hera_post_elapsed,
     )
 
-    # B-05: best-effort persistence. Never block the user on a Supabase outage.
-    internal_video_id: str | None = None
+    # --- Persist (best-effort) ---
     supabase = get_supabase_client()
     if supabase is not None:
         try:
-            insert_res = (
+            (
                 supabase.table("videos")
                 .insert(
                     {
-                        "user_id": user.user_id,
-                        "listing_url": body.listing_url,
-                        "hera_video_id": video_id,
+                        "id": internal_id,  # use our pre-generated UUID as the row id
+                        "user_id": user_id,
+                        "listing_url": listing_url,
+                        "hera_video_id": hera_video_id,
                         "hera_project_url": hera_response.get("project_url"),
                         "video_url": None,
                         "outpaint_enabled": decision.outpaint_enabled,
-                        "listing_data": body.listing.model_dump(),
+                        "listing_data": listing.model_dump(),
                         "agent_decision": decision.model_dump(),
                         "hera_payload": payload,
                     }
                 )
                 .execute()
             )
-            rows = insert_res.data or []
-            if rows:
-                internal_video_id = rows[0].get("id")
             log.info(
-                "supabase: persisted video_id=%s internal_id=%s",
-                video_id,
-                internal_video_id,
+                "job %s: supabase persisted hera_video_id=%s",
+                internal_id,
+                hera_video_id,
             )
-        except Exception as exc:
-            log.error("supabase: insert failed video_id=%s err=%s", video_id, exc)
+        except Exception as exc:  # noqa: BLE001
+            log.error(
+                "job %s: supabase insert failed err=%s", internal_id, exc
+            )
 
     log.info(
-        "generate: END video_id=%s internal_id=%s total=%.1fs phase2=%.1fs hera=%.1fs",
-        video_id,
-        internal_video_id,
+        "job %s: handed off to Hera total=%.1fs phase2=%.1fs hera=%.1fs",
+        internal_id,
         time.monotonic() - gen_start,
         phase2_elapsed,
         hera_post_elapsed,
     )
-    return GenerateResponse(
-        video_id=video_id, decision=decision, internal_video_id=internal_video_id
+
+
+@app.post("/api/generate", response_model=GenerateAcceptedResponse)
+@limiter.limit(LIMIT_GENERATE)
+async def generate_video(
+    request: Request,  # noqa: ARG001 — required by slowapi
+    body: GenerateRequest,
+    user: CurrentUser,
+) -> GenerateAcceptedResponse:
+    """Async kickoff: registers a job, fires the background task, returns
+    immediately. Phase 2 (~90s) + Hera POST run independently of this request,
+    so the upstream proxy (Cloudflare/Railway) never sees a >100s blocking
+    POST. Frontend polls GET /api/jobs/{internal_video_id} for progress."""
+    internal_id = str(uuid.uuid4())
+    app.state.jobs[internal_id] = {
+        "internal_video_id": internal_id,
+        "state": "planning",
+        "stage": "queued",
+        "hera_video_id": None,
+        "decision": None,
+        "file_url": None,
+        "error": None,
+        "created_at": time.time(),
+    }
+    asyncio.create_task(
+        _run_phase2_job(
+            internal_id=internal_id,
+            listing_url=body.listing_url,
+            listing=body.listing,
+            phase1=body.phase1,
+            overrides=body.overrides,
+            user_id=user.user_id,
+        )
+    )
+    return GenerateAcceptedResponse(internal_video_id=internal_id, state="planning")
+
+
+# Drop jobs that have been in a terminal state long enough that the frontend
+# has either consumed them or moved on. Cleared on every poll — saves a sweep
+# task. Bound on memory growth: 1 hour × hackathon traffic ≈ negligible.
+_JOB_TTL_SECONDS = 60 * 60
+
+
+def _cleanup_old_jobs() -> None:
+    now = time.time()
+    expired = [
+        jid
+        for jid, j in app.state.jobs.items()
+        if j["state"] in ("success", "failed") and (now - j["created_at"]) > _JOB_TTL_SECONDS
+    ]
+    for jid in expired:
+        app.state.jobs.pop(jid, None)
+
+
+@app.get("/api/jobs/{internal_id}", response_model=JobStatusResponse)
+async def get_job_status(
+    internal_id: str,
+    _user: CurrentUser,
+) -> JobStatusResponse:
+    """Live status of one generate job. While state='rendering' we proxy through
+    to Hera's GET /videos/{hera_video_id} on each poll so the frontend gets the
+    final file_url without a second endpoint."""
+    _cleanup_old_jobs()
+
+    job = app.state.jobs.get(internal_id)
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "job_not_found", "message": "Job expired or never existed."},
+        )
+
+    # If Hera is rendering, fetch its current status. Errors here are non-fatal
+    # — the frontend will retry on the next poll cycle.
+    if job["state"] == "rendering" and job["hera_video_id"]:
+        try:
+            r = await app.state.http.get(f"/videos/{job['hera_video_id']}")
+            if r.is_success:
+                hera_data = r.json()
+                hera_status = hera_data.get("status")
+                outputs = hera_data.get("outputs") or []
+                if hera_status == "success":
+                    file_url = outputs[0].get("file_url") if outputs else None
+                    job["state"] = "success"
+                    job["file_url"] = file_url
+                    log.info(
+                        "job %s: render success file_url=%s",
+                        internal_id,
+                        bool(file_url),
+                    )
+                elif hera_status == "failed":
+                    err_msg = outputs[0].get("error") if outputs else "Hera reported failure"
+                    job["state"] = "failed"
+                    job["error"] = err_msg or "Hera reported failure"
+                    log.warning("job %s: render failed err=%s", internal_id, err_msg)
+        except httpx.HTTPError as exc:
+            log.warning("job %s: hera poll failed (transient) err=%s", internal_id, exc)
+
+    return JobStatusResponse(
+        internal_video_id=job["internal_video_id"],
+        state=job["state"],
+        stage=job["stage"],
+        hera_video_id=job["hera_video_id"],
+        decision=job["decision"],
+        file_url=job["file_url"],
+        error=job["error"],
     )
 
 
-@app.post("/api/regenerate", response_model=RegenerateResponse)
-@limiter.limit(LIMIT_GENERATE)
-async def regenerate_video(
-    request: Request,  # noqa: ARG001 — required by slowapi
-    body: RegenerateRequest,
-    _user: CurrentUser,
-) -> RegenerateResponse:
-    """Re-submit an existing AgentDecision to Hera for a fresh render.
+async def _run_regenerate_job(internal_id: str, decision: Any) -> None:
+    """Background worker for /api/regenerate — no phase 2, just Hera POST.
+    Mirrors the planning/rendering state pattern of _run_phase2_job so the
+    frontend can use the same /api/jobs/{id} polling path."""
+    job = app.state.jobs.get(internal_id)
+    if job is None:
+        return
 
-    No re-classification — same decision in, new video_id out.
-    """
-    image_assets = [{"type": "image", "url": u} for u in body.decision.selected_image_urls[:5]]
+    job["stage"] = "hera_post"
+    image_assets = [{"type": "image", "url": u} for u in decision.selected_image_urls[:5]]
     payload = {
-        "prompt": body.decision.hera_prompt,
-        "duration_seconds": body.decision.duration_seconds,
+        "prompt": decision.hera_prompt,
+        "duration_seconds": decision.duration_seconds,
         "outputs": [{"format": "mp4", "aspect_ratio": "9:16", "fps": "30", "resolution": "1080p"}],
         "assets": image_assets,
     }
     log.info(
-        "regenerate: resubmitting to Hera. listing_url=%s prompt_chars=%d images=%d",
-        body.listing_url,
-        len(body.decision.hera_prompt),
+        "regen %s: submitting to Hera. prompt_chars=%d images=%d",
+        internal_id,
+        len(decision.hera_prompt),
         len(image_assets),
     )
     try:
         r = await _post_hera_videos_with_retry(payload)
     except httpx.HTTPError as exc:
-        log.exception("regenerate: Hera unreachable")
-        raise HTTPException(
-            status_code=502,
-            detail={"error": "hera_unreachable", "message": str(exc)},
-        ) from exc
+        log.exception("regen %s: Hera unreachable", internal_id)
+        job["state"] = "failed"
+        job["error"] = f"hera_unreachable: {exc}"
+        return
 
     if r.status_code >= 400:
-        log.error("regenerate: Hera POST /videos %d: %s", r.status_code, r.text[:500])
-        raise HTTPException(
-            status_code=500,
-            detail={"error": "hera_submission_failed", "message": r.text[:300]},
+        log.error(
+            "regen %s: Hera POST /videos %d body=%s",
+            internal_id,
+            r.status_code,
+            r.text[:500],
         )
+        job["state"] = "failed"
+        job["error"] = f"hera_submission_failed: {r.text[:300]}"
+        return
 
-    video_id = r.json()["video_id"]
-    log.info("regenerate: Hera accepted job video_id=%s", video_id)
-    return RegenerateResponse(video_id=video_id, decision=body.decision)
+    hera_video_id = r.json()["video_id"]
+    job["hera_video_id"] = hera_video_id
+    job["state"] = "rendering"
+    job["stage"] = "rendering"
+    log.info("regen %s: Hera accepted hera_video_id=%s", internal_id, hera_video_id)
+
+
+@app.post("/api/regenerate", response_model=GenerateAcceptedResponse)
+@limiter.limit(LIMIT_GENERATE)
+async def regenerate_video(
+    request: Request,  # noqa: ARG001 — required by slowapi
+    body: RegenerateRequest,
+    _user: CurrentUser,
+) -> GenerateAcceptedResponse:
+    """Re-submit an existing AgentDecision to Hera for a fresh render.
+
+    No re-classification — same decision in, new internal_video_id (job id)
+    out. Goes async via the /api/jobs/{id} flow so the frontend uses one
+    polling path. We do NOT persist a new DB row — the publish button on the
+    done screen stays wired to the original video.
+    """
+    internal_id = str(uuid.uuid4())
+    app.state.jobs[internal_id] = {
+        "internal_video_id": internal_id,
+        "state": "planning",
+        "stage": "queued",
+        "hera_video_id": None,
+        "decision": body.decision.model_dump(),
+        "file_url": None,
+        "error": None,
+        "created_at": time.time(),
+    }
+    asyncio.create_task(_run_regenerate_job(internal_id, body.decision))
+    return GenerateAcceptedResponse(internal_video_id=internal_id, state="planning")
 
 
 @app.get("/api/videos/{video_id}", response_model=GetVideoResponse)

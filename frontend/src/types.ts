@@ -148,13 +148,18 @@ export type AppState =
       overrides: Overrides;
     }
   | {
+      // Async-flow polling phase. internalVideoId is what we poll
+      // GET /api/jobs/{id} on. decision + heraVideoId fill in once phase 2
+      // and Hera POST finish on the server (job state goes planning →
+      // rendering); fileUrl arrives at state=success and we transition
+      // straight to "done".
       screen: "generating";
       listing: ScrapedListing;
       phase1: Phase1Decision;
       overrides: Overrides;
-      decision: AgentDecision;
-      videoId: string;
-      internalVideoId: string | null;
+      internalVideoId: string;
+      decision: AgentDecision | null;
+      heraVideoId: string | null;
     }
   | {
       screen: "done";

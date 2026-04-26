@@ -16,8 +16,8 @@ import { VideoPlayer } from "@/components/VideoPlayer"
 import { ConnectYouTubeBadge } from "@/youtube/ConnectYouTubeBadge"
 import { PublishButton } from "@/youtube/PublishButton"
 
-import { postGenerate, postListing, postRegenerate, pollStatus } from "../api/client"
-import type { AppState, Overrides, Phase1Decision, ScrapedListing } from "../types"
+import { postGenerate, postListing, postRegenerate, pollJob, pollStatus } from "../api/client"
+import type { AgentDecision, AppState, Overrides, Phase1Decision, ScrapedListing } from "../types"
 
 const POLL_INTERVAL_MS = 5000
 // Hera renders can take 130-200s on a clear day, more under hackathon-load
@@ -148,7 +148,9 @@ export function AgentApp() {
     // leave the user staring at the storyboard form with a disabled button.
     setState({ screen: "starting", listing, phase1, overrides })
     try {
-      const { video_id, decision, internal_video_id } = await postGenerate(
+      // Async kickoff — backend returns immediately with the internal id.
+      // Phase 2 + Hera POST run as a background task; we poll /api/jobs/{id}.
+      const { internal_video_id } = await postGenerate(
         listingUrl,
         listing,
         phase1,
@@ -159,9 +161,9 @@ export function AgentApp() {
         listing,
         phase1,
         overrides,
-        decision,
-        videoId: video_id,
         internalVideoId: internal_video_id,
+        decision: null,
+        heraVideoId: null,
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to start generation."
@@ -186,25 +188,26 @@ export function AgentApp() {
 
   async function handleRegenerate() {
     if (state.screen !== "done") return
-    const { listing, phase1, overrides, decision, internalVideoId } = state
+    const { listing, phase1, overrides, decision } = state
     setRegenerating(true)
     try {
-      const { video_id, decision: newDecision } = await postRegenerate(
+      // Async kickoff like postGenerate — backend registers a tracker job
+      // (NOT a new DB row), returns the new internal id, fires Hera POST
+      // in the background. Decision is unchanged; only the render is fresh.
+      const { internal_video_id: newJobId } = await postRegenerate(
         listingUrl,
         listing,
         decision,
       )
-      // Regenerate doesn't persist a new DB row, so the publish button stays
-      // wired to the original video (already-saved) — that's the one a user
-      // would actually want to publish if they like the first take better.
       setState({
         screen: "generating",
         listing,
         phase1,
         overrides,
-        decision: newDecision,
-        videoId: video_id,
-        internalVideoId,
+        internalVideoId: newJobId,
+        // Pre-populate decision so polling effect doesn't have to wait.
+        decision,
+        heraVideoId: null,
       })
     } catch (err) {
       setState({
@@ -285,9 +288,13 @@ export function AgentApp() {
 
   useEffect(() => {
     if (state.screen !== "generating") return
-    const { videoId, listing, phase1, overrides, decision, internalVideoId } = state
+    const { internalVideoId, listing, phase1, overrides } = state
 
     let cancelled = false
+    // Latest decision/heraVideoId from the job — fill in as the server gets
+    // them. We carry these into the "done" state when render finishes.
+    let latestDecision: AgentDecision | null = state.decision
+    let latestHeraVideoId: string | null = state.heraVideoId
 
     async function doPoll() {
       if (cancelled) return
@@ -295,43 +302,59 @@ export function AgentApp() {
       if (Date.now() - pollStartRef.current >= POLL_TIMEOUT_MS) {
         clearPolling()
         if (!cancelled) {
-          setState({ screen: "error", message: "Generation timed out after 3 minutes." })
+          setState({ screen: "error", message: "Generation timed out after 5 minutes." })
         }
         return
       }
 
       try {
-        const data = await pollStatus(videoId)
+        const data = await pollJob(internalVideoId)
         if (cancelled) return
 
-        if (data.status === "success") {
+        // Mirror server-side state into our local view as the job progresses.
+        // Decision becomes available after phase 2; heraVideoId after Hera POST.
+        if (data.decision && !latestDecision) {
+          latestDecision = data.decision
+        }
+        if (data.hera_video_id && !latestHeraVideoId) {
+          latestHeraVideoId = data.hera_video_id
+        }
+
+        if (data.state === "success") {
           clearPolling()
-          const fileUrl = data.outputs[0]?.file_url ?? ""
+          if (!latestDecision) {
+            // Server lost the decision somehow — bail with a useful message
+            // rather than crashing the done screen on a missing field.
+            setState({
+              screen: "error",
+              message: "Render finished but the agent decision was missing. Try again.",
+            })
+            return
+          }
+          const fileUrl = data.file_url ?? ""
           setState({
             screen: "done",
             listing,
             phase1,
             overrides,
-            decision,
+            decision: latestDecision,
             fileUrl,
-            videoId,
+            videoId: latestHeraVideoId ?? "",
             internalVideoId,
           })
-          // Persist in the background so reloads don't lose the video — the
-          // dashboard list will pick it up next time the user navigates there.
-          // We do NOT auto-navigate: the done screen has the full RationaleRail
-          // with agent insights (ICP, hook rationale, beliefs applied, etc.)
-          // which is the payoff of the agent flow. Library detail is for later.
+          // Persist video_url to Supabase so reloads + dashboard list work.
+          // Best-effort: the done screen still renders if this no-ops.
           if (internalVideoId && fileUrl) {
             void finalizeVideo(internalVideoId, fileUrl)
           }
-        } else if (data.status === "failed") {
+        } else if (data.state === "failed") {
           clearPolling()
           setState({
             screen: "error",
-            message: data.outputs[0]?.error ?? "Hera reported a failure.",
+            message: data.error ?? "Hera reported a failure.",
           })
         }
+        // state==="planning" or "rendering" → keep polling.
       } catch (err) {
         if (!cancelled) {
           clearPolling()
@@ -351,7 +374,7 @@ export function AgentApp() {
       clearPolling()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.screen === "generating" ? state.videoId : null])
+  }, [state.screen === "generating" ? state.internalVideoId : null])
 
   // Map state → which step the horizontal indicator highlights.
   // Analyze flashes briefly; Draft sits ~5s; Render takes most of the time;
