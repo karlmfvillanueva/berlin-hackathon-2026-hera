@@ -29,6 +29,7 @@ from src.agent import (
     run_render_from_plan,
     run_storyboard_plan,
 )
+from src.agent.fixture_loader import fixture_room_ids
 from src.agent.scraper import scrape_listing
 from src.auth import AuthenticatedUser, current_user
 from src.limits import LIMIT_GENERATE, LIMIT_LISTING, LIMIT_METRICS_REFRESH, LIMIT_PUBLISH, limiter
@@ -149,24 +150,87 @@ async def health() -> dict[str, object]:
     return {"ok": True, "hera_key_loaded": bool(HERA_API_KEY)}
 
 
+class DemoListing(BaseModel):
+    """Pre-scraped listing the demo-mode UI surfaces as a picker card."""
+
+    room_id: str
+    listing_url: str
+    title: str
+    location: str
+    cover_photo_url: str | None = None
+    rating_overall: float | None = None
+    reviews_count: int | None = None
+
+
 class MeResponse(BaseModel):
     user_id: str
     email: str | None
     require_auth: bool
+    is_team_member: bool
+    demo_listings: list[DemoListing]
 
 
 CurrentUser = Annotated[AuthenticatedUser, Depends(current_user)]
 
 
+def _is_team_member(email: str | None) -> bool:
+    """Lookup against the team_members allowlist. Service-role only — RLS would
+    block authenticated reads. Falsy on every error so a Supabase outage can't
+    accidentally promote a user to team status."""
+    if not email:
+        return False
+    supabase = get_supabase_client()
+    if supabase is None:
+        return False
+    try:
+        res = (
+            supabase.table("team_members")
+            .select("email")
+            .eq("email", email.lower())
+            .limit(1)
+            .execute()
+        )
+        return bool(res.data)
+    except Exception as exc:  # noqa: BLE001
+        log.error("team_members: lookup failed email=%s err=%s", email, exc)
+        return False
+
+
+def _build_demo_listings() -> list[DemoListing]:
+    """Materialise the picker cards for demo mode from the fixture set."""
+    items: list[DemoListing] = []
+    for room_id in fixture_room_ids():
+        # Build a real-shaped Airbnb URL so the existing /api/listing flow
+        # accepts it unchanged — the fixture loader matches by room ID.
+        synthetic_url = f"https://www.airbnb.com/rooms/{room_id}"
+        listing = load_fixture(synthetic_url)
+        if listing is None:
+            continue
+        items.append(
+            DemoListing(
+                room_id=room_id,
+                listing_url=synthetic_url,
+                title=listing.title,
+                location=listing.location,
+                cover_photo_url=listing.photos[0].url if listing.photos else None,
+                rating_overall=listing.rating_overall,
+                reviews_count=listing.reviews_count,
+            )
+        )
+    return items
+
+
 @app.get("/api/me", response_model=MeResponse)
 async def me(user: CurrentUser) -> MeResponse:
-    """Returns the JWT-resolved user. Used by the frontend to confirm a session
-    is valid against this backend (backend may run with REQUIRE_AUTH=false in dev,
-    in which case any client gets the dev-bypass user)."""
+    """Returns the JWT-resolved user plus the team-membership flag and the
+    curated demo-listing set. The frontend uses these to decide whether to
+    show the free-text URL input (team only) or only the demo picker cards."""
     return MeResponse(
         user_id=user.user_id,
         email=user.email,
         require_auth=os.getenv("REQUIRE_AUTH", "true").lower() != "false",
+        is_team_member=_is_team_member(user.email),
+        demo_listings=_build_demo_listings(),
     )
 
 
@@ -199,16 +263,38 @@ class ListingRequest(BaseModel):
 async def get_listing(
     request: Request,  # noqa: ARG001 — required by slowapi
     body: ListingRequest,
-    _user: CurrentUser,
+    user: CurrentUser,
 ) -> ListingResponse:
-    """Load a listing (fixture by default; live scrape behind ENABLE_LIVE_SCRAPE)."""
+    """Load a listing. Demo-mode users (non-team) are restricted to the
+    pre-scraped fixture set so the demo can't be broken by a missing/blocked
+    Airbnb URL. Team members fall through to live scrape (Playwright →
+    ScraperAPI) as before."""
+    is_team = _is_team_member(user.email)
     log.info(
-        "listing: url=%s outpaint_enabled=%s live_scrape=%s",
+        "listing: url=%s outpaint_enabled=%s live_scrape=%s is_team=%s",
         body.listing_url,
         body.outpaint_enabled,
         ENABLE_LIVE_SCRAPE,
+        is_team,
     )
     listing = load_fixture(body.listing_url)
+
+    if listing is None and not is_team:
+        # Demo-mode rail: refuse anything outside the fixture set so the front-
+        # end's picker contract stays honest. Frontend should never hit this in
+        # normal flow; if it does, the user crafted a URL by hand.
+        log.warning(
+            "listing: non-team user attempted non-fixture URL email=%s url=%s",
+            user.email,
+            body.listing_url,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "demo_mode_only",
+                "message": "Pick one of the demo listings to try the agent.",
+            },
+        )
 
     if listing is None and ENABLE_LIVE_SCRAPE:
         log.info("listing: fixture miss → live scrape url=%s", body.listing_url)

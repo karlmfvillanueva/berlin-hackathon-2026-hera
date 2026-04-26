@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 
+import { useMe } from "@/auth/useMe"
+import { DemoListingPicker } from "@/components/DemoListingPicker"
 import { ErrorState } from "@/components/ErrorState"
 import { Header } from "@/components/Header"
 import { RationaleRail } from "@/components/RationaleRail"
@@ -32,6 +34,11 @@ export function AgentApp() {
   const [searchParams, setSearchParams] = useSearchParams()
   const deepLinkHandled = useRef(false)
   const [submitting, setSubmitting] = useState(false)
+  const me = useMe()
+  // Treat unknown (loading) team status as non-team — picker renders, URL
+  // input stays hidden. The URL input flashes in for team members once /api/me
+  // resolves; that's the right tradeoff vs. a hidden picker for everyone else.
+  const isTeam = me?.is_team_member ?? false
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [scriptStep, setScriptStep] = useState(0)
   const [outpaintEnabled, setOutpaintEnabled] = useState(false)
@@ -293,13 +300,35 @@ export function AgentApp() {
 
       {/* idle */}
       {state.screen === "idle" && (
-        <main className="flex flex-1 items-center justify-center">
-          <UrlInput
-            onSubmit={handleGenerate}
-            loading={submitting}
-            outpaintEnabled={outpaintEnabled}
-            onOutpaintChange={setOutpaintEnabled}
-          />
+        <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center gap-10 px-6 py-12">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <h1 className="text-display-xl">
+              Turn an Airbnb listing into a 15-second video.
+            </h1>
+            <p className="text-body max-w-prose text-muted-foreground">
+              {isTeam
+                ? "Paste a link or pick a pre-loaded demo listing. The agent picks the hook, the angle, and the pacing."
+                : "Pick a demo listing. The agent picks the hook, the angle, and the pacing."}
+            </p>
+          </div>
+
+          {me ? (
+            <DemoListingPicker
+              listings={me.demo_listings}
+              onPick={handleGenerate}
+              loading={submitting}
+              exclusive={!isTeam}
+            />
+          ) : null}
+
+          {isTeam && (
+            <UrlInput
+              onSubmit={handleGenerate}
+              loading={submitting}
+              outpaintEnabled={outpaintEnabled}
+              onOutpaintChange={setOutpaintEnabled}
+            />
+          )}
         </main>
       )}
 
