@@ -1,21 +1,30 @@
 import { useState, type FormEvent } from "react"
-import { Link, Navigate, useNavigate } from "react-router-dom"
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "../useAuth"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 
+type LocationState = { from?: { pathname?: string; search?: string } }
+
 export function Signup() {
   const { user, signUp, signInWithGoogle, configured, loading } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // Same preservation as Login — survive the auth detour with query string intact.
+  const fromLoc = (location.state as LocationState | null)?.from
+  const from = fromLoc?.pathname
+    ? `${fromLoc.pathname}${fromLoc.search ?? ""}`
+    : "/"
+
   if (loading) return null
-  if (user) return <Navigate to="/" replace />
+  if (user) return <Navigate to={from} replace />
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -28,7 +37,7 @@ export function Signup() {
     const { error } = await signUp(email, password)
     setSubmitting(false)
     if (error) setError(error)
-    else navigate("/", { replace: true })
+    else navigate(from, { replace: true })
   }
 
   async function onGoogle() {
@@ -92,7 +101,11 @@ export function Signup() {
 
         <p className="text-body-sm text-muted-foreground mt-6 text-center">
           Already have an account?{" "}
-          <Link to="/login" className="font-medium text-foreground underline">
+          <Link
+            to="/login"
+            state={{ from: fromLoc }}
+            className="font-medium text-foreground underline"
+          >
             Sign in
           </Link>
         </p>

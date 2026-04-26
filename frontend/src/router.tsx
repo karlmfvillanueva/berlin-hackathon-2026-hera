@@ -11,7 +11,14 @@ import { VideoDetail } from "./pages/VideoDetail"
 
 export const router = createBrowserRouter([
   { path: "/", element: <Landing /> },
-  { path: "/app", element: <AgentApp /> },
+  {
+    path: "/app",
+    element: (
+      <ProtectedRoute>
+        <AgentApp />
+      </ProtectedRoute>
+    ),
+  },
   { path: "/login", element: <Login /> },
   { path: "/signup", element: <Signup /> },
   { path: "/impressum", element: <Impressum /> },

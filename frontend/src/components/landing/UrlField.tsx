@@ -31,16 +31,15 @@ export function UrlField({ variant, ctaLabel = "Try", className }: UrlFieldProps
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const value = url.trim()
-    if (!value) {
-      setError("Paste an Airbnb listing URL.")
-      return
-    }
-    if (!isValidAirbnbUrl(value)) {
+    // Empty submit is allowed — user clicks "Make my film" without pasting and
+    // lands on /app where they can paste later (or sign up first via the auth
+    // wall). With a value, we still validate so we don't deep-link garbage.
+    if (value && !isValidAirbnbUrl(value)) {
       setError("That doesn’t look like an Airbnb listing.")
       return
     }
     setError(null)
-    navigate(`/app?url=${encodeURIComponent(value)}`)
+    navigate(value ? `/app?url=${encodeURIComponent(value)}` : "/app")
   }
 
   const isHero = variant === "hero"

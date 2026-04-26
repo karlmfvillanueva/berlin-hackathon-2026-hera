@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 
-type LocationState = { from?: { pathname?: string } }
+type LocationState = { from?: { pathname?: string; search?: string } }
 
 export function Login() {
   const { user, signIn, signInWithGoogle, configured, loading } = useAuth()
@@ -17,7 +17,12 @@ export function Login() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const from = (location.state as LocationState | null)?.from?.pathname ?? "/"
+  const fromLoc = (location.state as LocationState | null)?.from
+  // Preserve query-string ("?url=...") so the landing-page deep link survives
+  // the auth detour and AgentApp can pre-fill the listing URL.
+  const from = fromLoc?.pathname
+    ? `${fromLoc.pathname}${fromLoc.search ?? ""}`
+    : "/"
 
   if (loading) return null
   if (user) return <Navigate to={from} replace />
@@ -93,7 +98,11 @@ export function Login() {
 
         <p className="text-body-sm text-muted-foreground mt-6 text-center">
           New here?{" "}
-          <Link to="/signup" className="font-medium text-foreground underline">
+          <Link
+            to="/signup"
+            state={{ from: fromLoc }}
+            className="font-medium text-foreground underline"
+          >
             Create an account
           </Link>
         </p>
