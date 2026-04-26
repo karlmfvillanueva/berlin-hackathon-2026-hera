@@ -18,6 +18,7 @@ AgentDecision ready for Hera submission. Expensive (~10s + Hera 3 min):
 
 from __future__ import annotations
 
+import asyncio
 import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -26,7 +27,6 @@ from src.agent.beliefs import fetch_beliefs
 from src.agent.final_assembly import assemble_strategic_hera_prompt
 from src.agent.icp_classifier import classify_icp
 from src.agent.location_enrichment import enrich_location
-from src.agent.neighborhood_context import fetch_neighborhood_context
 from src.agent.models import (
     AgentDecision,
     Belief,
@@ -38,6 +38,7 @@ from src.agent.models import (
     ScrapedListing,
     Tone,
 )
+from src.agent.neighborhood_context import NeighborhoodContext, fetch_neighborhood_context
 from src.agent.outpainter import outpaint_5_photos
 from src.agent.photo_analyser import analyse_photos
 from src.agent.reviews_evaluation import evaluate_reviews
@@ -498,7 +499,15 @@ async def run_render_from_plan(
         deemphasis_hints=overrides.deemphasis,
     )
 
-    neighborhood = await fetch_neighborhood_context(listing, icp)
+    # Hard budget so a slow Google/Hera /files round-trip can't hold up the
+    # whole render. Best-effort by design — empty context is fine downstream.
+    try:
+        neighborhood = await asyncio.wait_for(
+            fetch_neighborhood_context(listing, icp), timeout=20.0
+        )
+    except TimeoutError:
+        log.warning("neighborhood: budget exceeded (20s) — proceeding without venue refs")
+        neighborhood = NeighborhoodContext.empty()
     location_for_assembly = {**location}
     if neighborhood.nearby_places_verified:
         location_for_assembly["nearby_places_verified"] = neighborhood.nearby_places_verified

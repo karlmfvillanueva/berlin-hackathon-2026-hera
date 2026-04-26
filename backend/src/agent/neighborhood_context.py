@@ -185,6 +185,66 @@ async def _upload_hera_file(client: httpx.AsyncClient, hera_key: str, data: byte
     return url if isinstance(url, str) and url.startswith("http") else None
 
 
+async def _resolve_place(
+    client: httpx.AsyncClient,
+    i: int,
+    row: dict[str, Any],
+    dist_m: float,
+    gkey: str,
+    hkey: str,
+) -> tuple[dict[str, Any], dict[str, Any], str] | None:
+    """Download + upload one place's hero photo. Returns (place_row, verified_row,
+    hera_url) on success, None on any soft failure (missing fields, download or
+    upload miss). Designed to be safely run via asyncio.gather alongside peers."""
+    name = row.get("name")
+    if not isinstance(name, str):
+        return None
+    photos = row.get("photos") or []
+    pref_obj = photos[0] if photos else {}
+    pref = pref_obj.get("photo_reference") if isinstance(pref_obj, dict) else None
+    if not isinstance(pref, str):
+        return None
+    html_attr = pref_obj.get("html_attributions") if isinstance(pref_obj, dict) else None
+    attr_list: list[str] = []
+    if isinstance(html_attr, list):
+        attr_list = [a for a in html_attr if isinstance(a, str)]
+
+    img = await _download_place_photo(client, pref, gkey)
+    if not img:
+        return None
+    url = await _upload_hera_file(client, hkey, img, f"nearby-{i}.jpg")
+    if not url:
+        return None
+
+    types_list = row.get("types") or []
+    tlist = [t for t in types_list if isinstance(t, str)][:8]
+    vicinity = row.get("vicinity")
+    vstr = vicinity if isinstance(vicinity, str) else None
+    rating = row.get("rating")
+    r_out = float(rating) if isinstance(rating, (int, float)) else None
+    dist_int = int(round(dist_m))
+
+    place_row = {
+        "name": name,
+        "distance_m": dist_int,
+        "types": tlist,
+        "rating": r_out,
+        "vicinity": vstr,
+        "google_photo_attributions": attr_list,
+    }
+    verified_row = {
+        "index": i,
+        "name": name,
+        "types": tlist,
+        "distance_m": dist_int,
+        "rating": r_out,
+        "vicinity": vstr,
+        "hera_reference_url": url,
+        "google_photo_attributions": attr_list,
+    }
+    return place_row, verified_row, url
+
+
 async def fetch_neighborhood_context(
     listing: ScrapedListing,
     icp: Mapping[str, Any] | None,
@@ -245,61 +305,27 @@ async def fetch_neighborhood_context(
             scored.sort(key=lambda x: x[0], reverse=True)
             top = scored[:_MAX_PLACES]
 
+            # Run download + upload per place in parallel. Sequential previously
+            # added 3× the slowest Hera upload to phase 2, which dominated the
+            # tail when /files was congested. Parallel: tail = max(slowest), not
+            # sum. Failures still soft-skip individual places.
+            results = await asyncio.gather(
+                *[
+                    _resolve_place(client, i, row, dist_m, gkey, hkey)
+                    for i, (_sc, row, dist_m) in enumerate(top, start=1)
+                ],
+                return_exceptions=False,
+            )
+
             places_out: list[dict[str, Any]] = []
             verified: list[dict[str, Any]] = []
             hera_urls: list[str] = []
-
-            for i, (_sc, row, dist_m) in enumerate(top, start=1):
-                name = row.get("name")
-                if not isinstance(name, str):
+            for resolved in results:
+                if resolved is None:
                     continue
-                photos = row.get("photos") or []
-                pref_obj = photos[0] if photos else {}
-                pref = pref_obj.get("photo_reference") if isinstance(pref_obj, dict) else None
-                if not isinstance(pref, str):
-                    continue
-                html_attr = pref_obj.get("html_attributions") if isinstance(pref_obj, dict) else None
-                attr_list: list[str] = []
-                if isinstance(html_attr, list):
-                    attr_list = [a for a in html_attr if isinstance(a, str)]
-
-                img = await _download_place_photo(client, pref, gkey)
-                if not img:
-                    continue
-                fname = f"nearby-{i}.jpg"
-                url = await _upload_hera_file(client, hkey, img, fname)
-                if not url:
-                    continue
-
-                types_list = row.get("types") or []
-                tlist = [t for t in types_list if isinstance(t, str)][:8]
-                vicinity = row.get("vicinity")
-                vstr = vicinity if isinstance(vicinity, str) else None
-                rating = row.get("rating")
-                r_out = float(rating) if isinstance(rating, (int, float)) else None
-
-                places_out.append(
-                    {
-                        "name": name,
-                        "distance_m": int(round(dist_m)),
-                        "types": tlist,
-                        "rating": r_out,
-                        "vicinity": vstr,
-                        "google_photo_attributions": attr_list,
-                    }
-                )
-                verified.append(
-                    {
-                        "index": i,
-                        "name": name,
-                        "types": tlist,
-                        "distance_m": int(round(dist_m)),
-                        "rating": r_out,
-                        "vicinity": vstr,
-                        "hera_reference_url": url,
-                        "google_photo_attributions": attr_list,
-                    }
-                )
+                place_row, verified_row, url = resolved
+                places_out.append(place_row)
+                verified.append(verified_row)
                 hera_urls.append(url)
 
             if not places_out:
