@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useSearchParams } from "react-router-dom"
 
 import { finalizeVideo } from "@/api/dashboard"
 import { useMe } from "@/auth/useMe"
@@ -44,7 +44,6 @@ export function AgentApp() {
   // input stays hidden. The URL input flashes in for team members once /api/me
   // resolves; that's the right tradeoff vs. a hidden picker for everyone else.
   const isTeam = me?.is_team_member ?? false
-  const navigate = useNavigate()
   // Demo mode is the default for everyone. Team members can toggle it off to
   // get the free-text URL input back; non-team users never see the toggle, so
   // their state is effectively pinned to ON.
@@ -318,15 +317,13 @@ export function AgentApp() {
             videoId,
             internalVideoId,
           })
-          // Persist + jump to the library entry so reloads don't lose the
-          // video and the dashboard can replay it. Best-effort — the in-memory
-          // done screen still renders correctly even if either step fails.
+          // Persist in the background so reloads don't lose the video — the
+          // dashboard list will pick it up next time the user navigates there.
+          // We do NOT auto-navigate: the done screen has the full RationaleRail
+          // with agent insights (ICP, hook rationale, beliefs applied, etc.)
+          // which is the payoff of the agent flow. Library detail is for later.
           if (internalVideoId && fileUrl) {
-            void finalizeVideo(internalVideoId, fileUrl).then(() => {
-              navigate(`/dashboard/v/${internalVideoId}?just_made=1`, {
-                replace: false,
-              })
-            })
+            void finalizeVideo(internalVideoId, fileUrl)
           }
         } else if (data.status === "failed") {
           clearPolling()
