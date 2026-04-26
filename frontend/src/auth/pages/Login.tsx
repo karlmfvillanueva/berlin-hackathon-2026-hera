@@ -19,10 +19,12 @@ export function Login() {
 
   const fromLoc = (location.state as LocationState | null)?.from
   // Preserve query-string ("?url=...") so the landing-page deep link survives
-  // the auth detour and AgentApp can pre-fill the listing URL.
+  // the auth detour and AgentApp can pre-fill the listing URL. When there's
+  // no origin route (user clicked "Sign in" in the landing nav), fall back to
+  // /dashboard — landing-after-login is never useful.
   const from = fromLoc?.pathname
     ? `${fromLoc.pathname}${fromLoc.search ?? ""}`
-    : "/"
+    : "/dashboard"
 
   if (loading) return null
   if (user) return <Navigate to={from} replace />

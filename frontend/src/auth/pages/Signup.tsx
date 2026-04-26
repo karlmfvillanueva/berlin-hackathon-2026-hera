@@ -21,7 +21,7 @@ export function Signup() {
   const fromLoc = (location.state as LocationState | null)?.from
   const from = fromLoc?.pathname
     ? `${fromLoc.pathname}${fromLoc.search ?? ""}`
-    : "/"
+    : "/dashboard"
 
   if (loading) return null
   if (user) return <Navigate to={from} replace />
