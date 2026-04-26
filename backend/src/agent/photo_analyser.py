@@ -373,11 +373,18 @@ def _validate_result(result: dict[str, Any], n_photos: int) -> None:
     rej = result.get("rejected_gallery_strengths")
     if not isinstance(rej, list):
         raise RuntimeError("rejected_gallery_strengths must be an array")
+    # rejected_gallery_strengths is creative annotation for the rationale rail —
+    # the actual photo selection is in selected_indices_hero_first. Gemini often
+    # under-fills this list (returns 4 of 5 expected). Downgrade count check to
+    # a warning so a slightly lazy LLM doesn't kill the pipeline; per-row shape
+    # validation stays strict.
     expected_rejects = max(0, n_photos - min(5, n_photos))
     if len(rej) < expected_rejects:
-        raise RuntimeError(
-            "rejected_gallery_strengths must include at least one entry per photo not in the "
-            f"top shortlist (expected at least {expected_rejects}, got {len(rej)})"
+        log.warning(
+            "photo_analyser: rejected_gallery_strengths short (got %d, expected ≥%d) — "
+            "proceeding without it as the rationale fallback",
+            len(rej),
+            expected_rejects,
         )
     for i, row in enumerate(rej):
         if not isinstance(row, dict):

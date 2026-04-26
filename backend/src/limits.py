@@ -27,7 +27,12 @@ def _user_or_ip_key(request: Request) -> str:
 limiter = Limiter(
     key_func=_user_or_ip_key,
     default_limits=[],
-    headers_enabled=True,
+    # headers_enabled=True needs every rate-limited endpoint to accept a
+    # `response: Response` parameter (slowapi injects X-RateLimit-* headers).
+    # Without that, slowapi raises a generic 500 that strips the CORS headers,
+    # which surfaces as "Failed to fetch" in the browser. The actual rate
+    # limiting still works — we just don't expose the remaining-quota headers.
+    headers_enabled=False,
 )
 
 # Per-route limits are applied as decorators on main.py routes.
