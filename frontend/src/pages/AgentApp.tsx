@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { UrlInput } from "@/components/UrlInput"
 import { VideoPlayer } from "@/components/VideoPlayer"
+import { ConnectYouTubeBadge } from "@/youtube/ConnectYouTubeBadge"
+import { PublishButton } from "@/youtube/PublishButton"
 
 import { postGenerate, postListing, postRegenerate, pollStatus } from "../api/client"
 import type { AppState, Overrides, Phase1Decision, ScrapedListing } from "../types"
@@ -119,7 +121,7 @@ export function AgentApp() {
     setScriptStep(0)
     setElapsedSeconds(0)
     try {
-      const { video_id, decision } = await postGenerate(
+      const { video_id, decision, internal_video_id } = await postGenerate(
         listingUrl,
         listing,
         phase1,
@@ -132,6 +134,7 @@ export function AgentApp() {
         overrides,
         decision,
         videoId: video_id,
+        internalVideoId: internal_video_id,
       })
     } catch (err) {
       setState({
@@ -145,7 +148,7 @@ export function AgentApp() {
 
   async function handleRegenerate() {
     if (state.screen !== "done") return
-    const { listing, phase1, overrides, decision } = state
+    const { listing, phase1, overrides, decision, internalVideoId } = state
     setRegenerating(true)
     try {
       const { video_id, decision: newDecision } = await postRegenerate(
@@ -153,6 +156,9 @@ export function AgentApp() {
         listing,
         decision,
       )
+      // Regenerate doesn't persist a new DB row, so the publish button stays
+      // wired to the original video (already-saved) — that's the one a user
+      // would actually want to publish if they like the first take better.
       setState({
         screen: "generating",
         listing,
@@ -160,6 +166,7 @@ export function AgentApp() {
         overrides,
         decision: newDecision,
         videoId: video_id,
+        internalVideoId,
       })
     } catch (err) {
       setState({
@@ -220,7 +227,7 @@ export function AgentApp() {
 
   useEffect(() => {
     if (state.screen !== "generating") return
-    const { videoId, listing, phase1, overrides, decision } = state
+    const { videoId, listing, phase1, overrides, decision, internalVideoId } = state
 
     let cancelled = false
     pollStartRef.current = Date.now()
@@ -260,6 +267,7 @@ export function AgentApp() {
             decision,
             fileUrl,
             videoId,
+            internalVideoId,
           })
         } else if (data.status === "failed") {
           clearPolling()
@@ -453,7 +461,7 @@ export function AgentApp() {
           </div>
 
           <div className="grid grid-cols-1 gap-7 lg:grid-cols-[1.4fr_1fr]">
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-6">
               <VideoPlayer
                 fileUrl={state.fileUrl}
                 caption={state.decision.hook}
@@ -464,6 +472,7 @@ export function AgentApp() {
                 regenerating={regenerating}
                 downloadError={downloadError}
               />
+              <PublishCard internalVideoId={state.internalVideoId} />
             </div>
 
             <RationaleRail decision={state.decision} />
@@ -476,6 +485,33 @@ export function AgentApp() {
         <ErrorState message={state.message} onRetry={goIdle} />
       )}
     </div>
+  )
+}
+
+/** Wraps the YouTube publish CTA on the done screen. Three states:
+ *   - persistence missed (no internalVideoId): show 'not saved' note, no button
+ *   - YouTube not connected: show ConnectYouTubeBadge so a single click flow
+ *     authorises and returns the user here
+ *   - YouTube connected + saved: show PublishButton (one-click upload) */
+function PublishCard({ internalVideoId }: { internalVideoId: string | null }) {
+  return (
+    <Card className="flex w-full max-w-[420px] flex-col gap-3 p-5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-label text-muted-foreground">Publish</span>
+        <ConnectYouTubeBadge />
+      </div>
+      {internalVideoId ? (
+        <PublishButton internalVideoId={internalVideoId} />
+      ) : (
+        <p className="text-body-sm text-muted-foreground">
+          Saving to your library failed — publish from{" "}
+          <a href="/dashboard" className="underline hover:text-foreground">
+            the dashboard
+          </a>{" "}
+          once it shows up.
+        </p>
+      )}
+    </Card>
   )
 }
 

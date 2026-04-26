@@ -31,6 +31,7 @@ export type ListingResponse = {
 export type GenerateResponse = {
   video_id: string;
   decision: AgentDecision;
+  internal_video_id: string | null;
 };
 
 export type PollResponse = {

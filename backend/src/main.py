@@ -382,27 +382,41 @@ async def generate_video(
     log.info("generate: Hera accepted job video_id=%s", video_id)
 
     # B-05: best-effort persistence. Never block the user on a Supabase outage.
+    internal_video_id: str | None = None
     supabase = get_supabase_client()
     if supabase is not None:
         try:
-            supabase.table("videos").insert(
-                {
-                    "user_id": user.user_id,
-                    "listing_url": body.listing_url,
-                    "hera_video_id": video_id,
-                    "hera_project_url": hera_response.get("project_url"),
-                    "video_url": None,
-                    "outpaint_enabled": decision.outpaint_enabled,
-                    "listing_data": body.listing.model_dump(),
-                    "agent_decision": decision.model_dump(),
-                    "hera_payload": payload,
-                }
-            ).execute()
-            log.info("supabase: persisted video_id=%s", video_id)
+            insert_res = (
+                supabase.table("videos")
+                .insert(
+                    {
+                        "user_id": user.user_id,
+                        "listing_url": body.listing_url,
+                        "hera_video_id": video_id,
+                        "hera_project_url": hera_response.get("project_url"),
+                        "video_url": None,
+                        "outpaint_enabled": decision.outpaint_enabled,
+                        "listing_data": body.listing.model_dump(),
+                        "agent_decision": decision.model_dump(),
+                        "hera_payload": payload,
+                    }
+                )
+                .execute()
+            )
+            rows = insert_res.data or []
+            if rows:
+                internal_video_id = rows[0].get("id")
+            log.info(
+                "supabase: persisted video_id=%s internal_id=%s",
+                video_id,
+                internal_video_id,
+            )
         except Exception as exc:
             log.error("supabase: insert failed video_id=%s err=%s", video_id, exc)
 
-    return GenerateResponse(video_id=video_id, decision=decision)
+    return GenerateResponse(
+        video_id=video_id, decision=decision, internal_video_id=internal_video_id
+    )
 
 
 @app.post("/api/regenerate", response_model=RegenerateResponse)

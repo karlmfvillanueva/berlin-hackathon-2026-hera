@@ -144,6 +144,7 @@ export type AppState =
       overrides: Overrides;
       decision: AgentDecision;
       videoId: string;
+      internalVideoId: string | null;
     }
   | {
       screen: "done";
@@ -153,5 +154,6 @@ export type AppState =
       decision: AgentDecision;
       fileUrl: string;
       videoId: string;
+      internalVideoId: string | null;
     }
   | { screen: "error"; message: string };

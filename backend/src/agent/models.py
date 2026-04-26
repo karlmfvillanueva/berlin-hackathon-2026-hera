@@ -126,6 +126,10 @@ class GenerateRequest(BaseModel):
 class GenerateResponse(BaseModel):
     video_id: str
     decision: AgentDecision
+    # videos.id from the Supabase insert. Required by /api/videos/{id}/publish
+    # so the AgentApp's done screen can wire a one-click YouTube upload without
+    # making the user travel to /dashboard. None when Supabase is unconfigured.
+    internal_video_id: str | None = None
 
 
 class RegenerateRequest(BaseModel):
