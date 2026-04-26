@@ -51,6 +51,15 @@ export type PhotoAnalysis = {
   };
 };
 
+export type NeighborhoodPlace = {
+  name?: string;
+  distance_m?: number;
+  types?: string[];
+  rating?: number;
+  vicinity?: string;
+  google_photo_attributions?: string[];
+};
+
 export type AgentDecision = {
   vibes: string;
   hook: string;
@@ -58,6 +67,9 @@ export type AgentDecision = {
   angle: string;
   background: string;
   selected_image_urls: string[];
+  /** Hera reference_image_urls — nearby venue photos, not listing interiors */
+  neighborhood_reference_urls?: string[];
+  neighborhood_places?: NeighborhoodPlace[];
   hera_prompt: string;
   // Optional: true if backend ran the outpainter on selected_image_urls.
   outpaint_enabled?: boolean;

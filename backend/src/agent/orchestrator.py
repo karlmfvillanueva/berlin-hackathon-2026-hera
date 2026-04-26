@@ -26,6 +26,7 @@ from src.agent.beliefs import fetch_beliefs
 from src.agent.final_assembly import assemble_strategic_hera_prompt
 from src.agent.icp_classifier import classify_icp
 from src.agent.location_enrichment import enrich_location
+from src.agent.neighborhood_context import fetch_neighborhood_context
 from src.agent.models import (
     AgentDecision,
     Belief,
@@ -497,6 +498,11 @@ async def run_render_from_plan(
         deemphasis_hints=overrides.deemphasis,
     )
 
+    neighborhood = await fetch_neighborhood_context(listing, icp)
+    location_for_assembly = {**location}
+    if neighborhood.nearby_places_verified:
+        location_for_assembly["nearby_places_verified"] = neighborhood.nearby_places_verified
+
     chosen_hook: HookOption | None = None
     if overrides.hook_id and overrides.hook_id != "auto":
         for h in phase1.hook_options:
@@ -512,7 +518,7 @@ async def run_render_from_plan(
     ) = assemble_strategic_hera_prompt(
         listing=listing,
         icp=icp,
-        location_enrichment=location,
+        location_enrichment=location_for_assembly,
         reviews_evaluation=reviews,
         visual_system=visual,
         photo_analysis=photo,
@@ -542,6 +548,8 @@ async def run_render_from_plan(
         angle=legacy["angle"],
         background=legacy["background"],
         selected_image_urls=selected_image_urls,
+        neighborhood_reference_urls=list(neighborhood.hera_reference_urls),
+        neighborhood_places=list(neighborhood.places),
         hera_prompt=hera_prompt,
         outpaint_enabled=phase1.outpaint_enabled,
         beliefs_applied=beliefs_applied,

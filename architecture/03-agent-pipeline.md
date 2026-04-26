@@ -9,6 +9,8 @@ The agent has *opinions*. It is not a templating system. It will:
 - Defend its choice in 2–3 sentences the user actually reads.
 - Apply learned beliefs (Phase 2 onward) to weight decisions, and log which beliefs it applied.
 
+**Shipped hackathon path (differs from sections below):** the repo runs **`orchestrator.run_storyboard_plan`** / **`run_render_from_plan`** with ICP, location enrichment, reviews, photo analyser, **`final_assembly`** (Strategic Opinion + Judge), optional outpaint, then Hera. For **nearby venue stills** (Google Places → Hera `/files` → `reference_image_urls`), see **[`05-neighborhood-google-places.md`](./05-neighborhood-google-places.md)**.
+
 ---
 
 ## Phase reminder

@@ -345,19 +345,22 @@ async def generate_video(
             detail={"error": "render_pipeline_failed", "message": str(exc)},
         ) from exc
 
-    # Hera's reference_image_urls is for brand/style references (logo, palette).
-    # Listing content photos go in assets[] with type=image.
+    # Listing photos → assets[]. Optional nearby venue stills (Google Places)
+    # → reference_image_urls (see neighborhood_context).
     image_assets = [{"type": "image", "url": u} for u in decision.selected_image_urls[:5]]
-    payload = {
+    payload: dict[str, Any] = {
         "prompt": decision.hera_prompt,
         "duration_seconds": decision.duration_seconds,
         "outputs": [{"format": "mp4", "aspect_ratio": "9:16", "fps": "30", "resolution": "1080p"}],
         "assets": image_assets,
     }
+    if decision.neighborhood_reference_urls:
+        payload["reference_image_urls"] = list(decision.neighborhood_reference_urls)[:5]
     log.info(
-        "generate: submitting to Hera. prompt_chars=%d images=%d lang=%s tone=%s",
+        "generate: submitting to Hera. prompt_chars=%d images=%d neighborhood_refs=%d lang=%s tone=%s",
         len(decision.hera_prompt),
         len(image_assets),
+        len(decision.neighborhood_reference_urls),
         body.overrides.language,
         body.overrides.tone,
     )
@@ -431,17 +434,20 @@ async def regenerate_video(
     No re-classification — same decision in, new video_id out.
     """
     image_assets = [{"type": "image", "url": u} for u in body.decision.selected_image_urls[:5]]
-    payload = {
+    payload: dict[str, Any] = {
         "prompt": body.decision.hera_prompt,
         "duration_seconds": body.decision.duration_seconds,
         "outputs": [{"format": "mp4", "aspect_ratio": "9:16", "fps": "30", "resolution": "1080p"}],
         "assets": image_assets,
     }
+    if body.decision.neighborhood_reference_urls:
+        payload["reference_image_urls"] = list(body.decision.neighborhood_reference_urls)[:5]
     log.info(
-        "regenerate: resubmitting to Hera. listing_url=%s prompt_chars=%d images=%d",
+        "regenerate: resubmitting to Hera. listing_url=%s prompt_chars=%d images=%d neighborhood_refs=%d",
         body.listing_url,
         len(body.decision.hera_prompt),
         len(image_assets),
+        len(body.decision.neighborhood_reference_urls),
     )
     try:
         r = await app.state.http.post("/videos", json=payload)

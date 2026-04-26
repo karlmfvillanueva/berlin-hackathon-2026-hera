@@ -183,6 +183,17 @@ PROPERTY_PHOTOS is ONLY the Photo Analyser shortlist (hero-first order). Use ONL
 narrative_slot_plan and creative_director_notes_for_assembly unless they clearly contradict ICP;
 if they conflict with conversion, resolve in favour of ICP + reviews truth.
 
+If NEIGHBORHOOD_GOOGLE_PLACES is present in the user JSON, it is an ordered list of up to **three**
+nearby third-party venues already **biased toward the ICP persona** (place types were chosen from
+ICP_CLASSIFIER.best_icp.persona upstream—cafés/parks/museums/nightlife etc.). Each row has a
+Hera-hosted reference image URL in the same 1-based order Hera will receive as reference_image_urls.
+
+Add a subsection **NEIGHBORHOOD REFERENCES**: name venues by index 1..M (M ≤ 3), distance, and how
+**SCENE 2 — LOCATION / CONTEXT** uses **one to three** of them (cutaway, supers, postcard frame)—
+prioritize the rows that most reinforce the **chosen persona's** booking psychology; you are not
+obliged to feature all three if a tighter edit serves the hook. These are NOT interior listing
+shots—never assign them PROPERTY_PHOTOS indices.
+
 ---
 
 SCENE PLAN (MANDATORY)
@@ -207,7 +218,9 @@ Example for duration_seconds=25:
   SCENE 5 — SOCIAL PROOF / CLIMAX (18.0–22.0s)
   SCENE 6 — CTA (22.0–25.0s)
 
-For EACH scene include: visual (which photo index), motion (Ken Burns, static, etc.), text (exact wording), timing, transitions.
+For EACH scene include: visual (which PROPERTY_PHOTOS index **or** which neighborhood reference index
+1..M from NEIGHBORHOOD_GOOGLE_PLACES when that scene uses a venue still), motion (Ken Burns, static,
+etc.), text (exact wording), timing, transitions.
 
 ---
 
@@ -231,7 +244,12 @@ Brief but sharp: why this angle converts; what the guest is actually buying; why
 
 HARD CONSTRAINTS
 
-- Use ONLY provided images (no stock); reference photos by PROPERTY_PHOTOS index only.
+- Listing imagery: use ONLY PROPERTY_PHOTOS from the user JSON (no stock). Reference those photos
+  by PROPERTY_PHOTOS index only in PHOTO STRATEGY and whenever a scene shows the rental itself.
+- If NEIGHBORHOOD_GOOGLE_PLACES is present (≤3 rows, ICP-tuned upstream), Hera receives those
+  images as reference_image_urls in the **same order** as the array. In SCENE 2 you **may** weave in
+  **one, two, or all three** as lifestyle proof for the **same ICP** the brief targets—never label
+  them as inside the property.
 - Use review quotes ONLY if real and verbatim from reviews_evaluation.best_video_quotes or supporting_quotes; otherwise paraphrase theme without fake quotes.
 - Do NOT mention weak amenities (wifi, washer, etc.).
 - Do NOT include disclaimers. All text mobile-legible. No clutter. No generic phrasing.
@@ -253,8 +271,9 @@ You MUST fill three response-schema fields:
 - hera_video_prompt: the full structured brief above as a single string.
 - reference_photo_indices: array of 1-based indices into PROPERTY_PHOTOS
   (the Photo Analyser shortlist order in the user message). Use 1–N distinct
-  indices max (N = number of photos in PROPERTY_PHOTOS), hero first. These
-  are the images Hera will receive as references."""
+  indices max (N = number of photos in PROPERTY_PHOTOS), hero first. Those
+  map to Hera listing image assets. NEIGHBORHOOD_GOOGLE_PLACES rows (if any)
+  are separate Hera reference_image_urls — do not mix them into this array."""
 
 
 _RESPONSE_SCHEMA: dict[str, Any] = {
@@ -353,6 +372,13 @@ def _build_user_message(
         "REVIEWS_EVALUATION": reviews_evaluation,
         "VISUAL_SYSTEM": visual_system,
     }
+    nearby = (
+        location_enrichment.get("nearby_places_verified")
+        if isinstance(location_enrichment, Mapping)
+        else None
+    )
+    if isinstance(nearby, list) and nearby:
+        body["NEIGHBORHOOD_GOOGLE_PLACES"] = nearby
     if overrides is not None:
         body["USER_STEERING"] = {
             "language": {

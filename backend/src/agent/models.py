@@ -43,6 +43,10 @@ class AgentDecision(BaseModel):
     angle: str  # 1 sentence — editorial framing
     background: str  # 1 sentence — image composition / motion graphics approach
     selected_image_urls: list[str]  # top 5 ranked, max 5
+    # Nearby venue photos (Google Places → Hera ``/files``). Passed as
+    # ``reference_image_urls`` on create_video; not outpainted.
+    neighborhood_reference_urls: list[str] = Field(default_factory=list)
+    neighborhood_places: list[dict[str, Any]] = Field(default_factory=list)
     hera_prompt: str  # final prompt sent to Hera
     # Phase 2 additive
     outpaint_enabled: bool = False

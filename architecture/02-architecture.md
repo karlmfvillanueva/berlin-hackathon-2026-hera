@@ -22,8 +22,9 @@ This document is the single source of truth for what exists, what's planned, and
 | Agent | Gemini 2.5 Pro via Vertex AI (ADC) | + beliefs from DB | (unchanged) |
 | Video render | Hera REST | (unchanged) | (unchanged) |
 | Status updates | HTTP polling 5s | (unchanged) | Optional SSE upgrade |
+| Neighborhood POIs | — | Optional **Google Maps Platform** (Geocoding + Places + Place Photo) + **Hera `/files`**; see [`05-neighborhood-google-places.md`](./05-neighborhood-google-places.md) | (unchanged) |
 
-The Hera key never reaches the browser. Frontend talks only to FastAPI.
+The Hera key never reaches the browser. Frontend talks only to FastAPI. **Maps/Places API keys** are server-only as well (`GOOGLE_PLACES_API_KEY` / `GOOGLE_MAPS_API_KEY` in `.env`, never `VITE_*`).
 
 ---
 
@@ -44,6 +45,8 @@ backend/
       orchestrator.py        # run(listing) → AgentDecision
       fixture_loader.py      # Phase 1: load from fixtures/
       fixtures/              # Hand-captured listing JSON
+      neighborhood_context.py  # Optional: Google Places + Hera /files for nearby refs
+      # (see also: icp_classifier, location_enrichment, final_assembly, orchestrator)
       # Phase 2 additions:
       # scraper.py           # Live Playwright scraper, replaces fixture loader as primary
       # outpainter.py        # Nanobanana client (toggle-gated)
@@ -143,6 +146,10 @@ Thin proxy to `POST https://api.hera.video/v1/videos` for raw access during demo
 ### `GET /api/health`
 
 Smoke test: `{ ok: true, hera_key_loaded: bool }`. Never reveals the key.
+
+### Neighborhood / Google Places (optional, Phase 2 render)
+
+Not a separate HTTP route. During **`POST /api/generate`**, after photo analysis, the orchestrator may call **`neighborhood_context.fetch_neighborhood_context`**. If `GOOGLE_PLACES_API_KEY` (or `GOOGLE_MAPS_API_KEY`) and `HERA_API_KEY` succeed, the returned **`AgentDecision`** includes `neighborhood_places` and `neighborhood_reference_urls`, and the Hera create payload adds **`reference_image_urls`** for those venue stills. Spec: [`05-neighborhood-google-places.md`](./05-neighborhood-google-places.md).
 
 ### Phase 2 additions
 

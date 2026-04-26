@@ -48,6 +48,30 @@ export function RationaleRail({ decision }: RationaleRailProps) {
         </Card>
       ))}
 
+      {decision.neighborhood_places && decision.neighborhood_places.length > 0 && (
+        <Card className="p-5">
+          <p className="text-label text-secondary mb-3">Nearby (Google Places)</p>
+          <ul className="text-body-sm text-muted-foreground list-inside list-disc space-y-2 leading-relaxed">
+            {decision.neighborhood_places.map((p, i) => (
+              <li key={`${p.name ?? "place"}-${i}`}>
+                <span className="text-foreground">{p.name ?? "Venue"}</span>
+                {typeof p.distance_m === "number" && (
+                  <span> · ~{p.distance_m}m</span>
+                )}
+                {p.rating != null && <span> · ★{p.rating}</span>}
+              </li>
+            ))}
+          </ul>
+          {decision.neighborhood_places.some(
+            (p) => p.google_photo_attributions && p.google_photo_attributions.length > 0,
+          ) && (
+            <p className="text-body-sm mt-3 text-muted-foreground">
+              Photos © Google Maps users / Places — see attributions on Google.
+            </p>
+          )}
+        </Card>
+      )}
+
       {decision.beliefs_applied && decision.beliefs_applied.length > 0 && (
         <Card className="p-5">
           <p className="text-label text-secondary mb-3">Beliefs Applied</p>
