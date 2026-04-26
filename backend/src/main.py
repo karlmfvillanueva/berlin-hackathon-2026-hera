@@ -6,6 +6,7 @@ The frontend never sees HERA_API_KEY — it stays on the server.
 
 import asyncio
 import os
+import time
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Literal
 
@@ -160,21 +161,46 @@ async def _post_hera_videos_with_retry(payload: dict) -> httpx.Response:
     """
     last_exc: Exception | None = None
     for attempt in range(3):
+        attempt_start = time.monotonic()
         try:
-            return await app.state.http.post("/videos", json=payload)
+            r = await app.state.http.post("/videos", json=payload)
+            log.info(
+                "hera POST /videos attempt=%d ok elapsed=%.1fs status=%d",
+                attempt + 1,
+                time.monotonic() - attempt_start,
+                r.status_code,
+            )
+            return r
         except (httpx.ConnectTimeout, httpx.ConnectError) as exc:
             last_exc = exc
+            elapsed = time.monotonic() - attempt_start
             if attempt < 2:
                 wait = 2 * (attempt + 1)
                 log.warning(
-                    "hera POST /videos transient failure attempt=%d/3 wait=%ds err=%s",
+                    "hera POST /videos attempt=%d failed elapsed=%.1fs wait=%ds err=%s",
                     attempt + 1,
+                    elapsed,
                     wait,
                     type(exc).__name__,
                 )
                 await asyncio.sleep(wait)
                 continue
-            log.error("hera POST /videos exhausted retries err=%s", type(exc).__name__)
+            log.error(
+                "hera POST /videos attempt=%d failed elapsed=%.1fs exhausted err=%s",
+                attempt + 1,
+                elapsed,
+                type(exc).__name__,
+            )
+            raise
+        except httpx.HTTPError as exc:
+            # Read/Write/Pool/HTTP errors aren't retried but we want them logged
+            # with timing so we can tell apart slow-Hera from no-Hera.
+            log.error(
+                "hera POST /videos attempt=%d non-retryable elapsed=%.1fs err=%s",
+                attempt + 1,
+                time.monotonic() - attempt_start,
+                type(exc).__name__,
+            )
             raise
     assert last_exc is not None  # mypy
     raise last_exc
@@ -307,9 +333,10 @@ async def get_listing(
     pre-scraped fixture set so the demo can't be broken by a missing/blocked
     Airbnb URL. Team members fall through to live scrape (Playwright →
     ScraperAPI) as before."""
+    listing_start = time.monotonic()
     is_team = _is_team_member(user.email)
     log.info(
-        "listing: url=%s outpaint_enabled=%s live_scrape=%s is_team=%s",
+        "listing: START url=%s outpaint_enabled=%s live_scrape=%s is_team=%s",
         body.listing_url,
         body.outpaint_enabled,
         ENABLE_LIVE_SCRAPE,
@@ -355,14 +382,27 @@ async def get_listing(
                 "message": f"No fixture for URL: {body.listing_url}",
             },  # noqa: E501
         )
+    phase1_start = time.monotonic()
     try:
         phase1 = run_storyboard_plan(listing, outpaint_enabled=body.outpaint_enabled)
     except Exception as exc:
-        log.exception("listing: phase1 pipeline failed")
+        log.exception(
+            "listing: phase1 pipeline failed elapsed=%.1fs",
+            time.monotonic() - phase1_start,
+        )
         raise HTTPException(
             status_code=500,
             detail={"error": "classifier_failed", "message": str(exc)},
         ) from exc
+    log.info(
+        "listing: END elapsed=%.1fs phase1_only=%.1fs lang=%s tone=%s emphasis=%d hooks=%d",
+        time.monotonic() - listing_start,
+        time.monotonic() - phase1_start,
+        phase1.suggested_language,
+        phase1.suggested_tone,
+        len(phase1.emphasis_options),
+        len(phase1.hook_options),
+    )
     return ListingResponse(listing=listing, phase1=phase1)
 
 
@@ -374,14 +414,35 @@ async def generate_video(
     user: CurrentUser,
 ) -> GenerateResponse:
     """Phase 2: run the heavy agents with user overrides, then submit to Hera."""
+    gen_start = time.monotonic()
+    log.info(
+        "generate: START listing_url=%s lang=%s tone=%s emphasis=%d hook=%s outpaint=%s",
+        body.listing_url,
+        body.overrides.language,
+        body.overrides.tone,
+        len(body.overrides.emphasis),
+        body.overrides.hook_id,
+        body.phase1.outpaint_enabled,
+    )
+    phase2_start = time.monotonic()
     try:
         decision = await run_render_from_plan(body.listing, body.phase1, body.overrides)
     except Exception as exc:
-        log.exception("generate: phase2 pipeline failed")
+        log.exception(
+            "generate: phase2 pipeline failed elapsed=%.1fs",
+            time.monotonic() - phase2_start,
+        )
         raise HTTPException(
             status_code=500,
             detail={"error": "render_pipeline_failed", "message": str(exc)},
         ) from exc
+    phase2_elapsed = time.monotonic() - phase2_start
+    log.info(
+        "generate: phase2 done elapsed=%.1fs prompt_chars=%d images=%d",
+        phase2_elapsed,
+        len(decision.hera_prompt),
+        len(decision.selected_image_urls),
+    )
 
     # Hera's reference_image_urls is for brand/style references (logo, palette).
     # Listing content photos go in assets[] with type=image.
@@ -399,17 +460,28 @@ async def generate_video(
         body.overrides.language,
         body.overrides.tone,
     )
+    hera_post_start = time.monotonic()
     try:
         r = await _post_hera_videos_with_retry(payload)
     except httpx.HTTPError as exc:
-        log.exception("generate: Hera unreachable")
+        log.exception(
+            "generate: Hera unreachable elapsed=%.1fs total=%.1fs",
+            time.monotonic() - hera_post_start,
+            time.monotonic() - gen_start,
+        )
         raise HTTPException(
             status_code=502,
             detail={"error": "hera_unreachable", "message": str(exc)},
         ) from exc
+    hera_post_elapsed = time.monotonic() - hera_post_start
 
     if r.status_code >= 400:
-        log.error("generate: Hera POST /videos %d: %s", r.status_code, r.text[:500])
+        log.error(
+            "generate: Hera POST /videos %d elapsed=%.1fs body=%s",
+            r.status_code,
+            hera_post_elapsed,
+            r.text[:500],
+        )
         raise HTTPException(
             status_code=500,
             detail={"error": "hera_submission_failed", "message": r.text[:300]},
@@ -417,7 +489,11 @@ async def generate_video(
 
     hera_response = r.json()
     video_id = hera_response["video_id"]
-    log.info("generate: Hera accepted job video_id=%s", video_id)
+    log.info(
+        "generate: Hera accepted video_id=%s hera_elapsed=%.1fs",
+        video_id,
+        hera_post_elapsed,
+    )
 
     # B-05: best-effort persistence. Never block the user on a Supabase outage.
     internal_video_id: str | None = None
@@ -452,6 +528,14 @@ async def generate_video(
         except Exception as exc:
             log.error("supabase: insert failed video_id=%s err=%s", video_id, exc)
 
+    log.info(
+        "generate: END video_id=%s internal_id=%s total=%.1fs phase2=%.1fs hera=%.1fs",
+        video_id,
+        internal_video_id,
+        time.monotonic() - gen_start,
+        phase2_elapsed,
+        hera_post_elapsed,
+    )
     return GenerateResponse(
         video_id=video_id, decision=decision, internal_video_id=internal_video_id
     )

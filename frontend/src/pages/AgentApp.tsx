@@ -20,7 +20,9 @@ import { postGenerate, postListing, postRegenerate, pollStatus } from "../api/cl
 import type { AppState, Overrides, Phase1Decision, ScrapedListing } from "../types"
 
 const POLL_INTERVAL_MS = 5000
-const POLL_TIMEOUT_MS = 3 * 60 * 1000
+// Hera renders can take 130-200s on a clear day, more under hackathon-load
+// on the upstream. 3 min was cutting it tight whenever Hera queued.
+const POLL_TIMEOUT_MS = 5 * 60 * 1000
 
 const GENERATING_STEPS = [
   "Analyze",
@@ -164,10 +166,16 @@ export function AgentApp() {
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to start generation."
-      // Backend returns 502 + hera_unreachable when Hera's API is overloaded
-      // (we already retry 3× with backoff server-side; if we still got here,
-      // Hera is genuinely down). Show a kind message instead of a raw 502.
-      const heraDown = message.includes("hera_unreachable") || message.includes("502")
+      // Backend can fail to reach Hera in two ways:
+      //   - hera_unreachable / 502 → connect-level failure (retried 3×, still nothing)
+      //   - hera_submission_failed → Hera returned 4xx/5xx (rate limit, queue full, etc.)
+      // Both surface to the user as "Hera is busy" — there's nothing to do but wait.
+      const heraDown =
+        message.includes("hera_unreachable") ||
+        message.includes("hera_submission_failed") ||
+        message.includes("502") ||
+        message.includes("503") ||
+        message.includes("504")
       setState({
         screen: "error",
         message: heraDown
