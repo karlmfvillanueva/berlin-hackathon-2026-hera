@@ -870,6 +870,7 @@ async def get_belief_evolution(_user: CurrentUser) -> BeliefEvolutionResponse:
 from pathlib import Path  # noqa: E402
 
 from fastapi.staticfiles import StaticFiles  # noqa: E402
+from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 if _STATIC_DIR.exists():
@@ -877,12 +878,17 @@ if _STATIC_DIR.exists():
 
     class _SPAStaticFiles(StaticFiles):
         async def get_response(self, path: str, scope):  # type: ignore[override]
-            response = await super().get_response(path, scope)
-            # SPA fallback: serve index.html for any unknown path so client-side
-            # routes (/dashboard, /login, …) work on a hard reload.
-            if response.status_code == 404:
-                return await super().get_response("index.html", scope)
-            return response
+            # Starlette's StaticFiles RAISES HTTPException(404) on a missing
+            # file — it does NOT return a 404 response — so the previous
+            # `response.status_code == 404` check never fired and the SPA
+            # client-side routes (/dashboard, /login, …) bubbled up as
+            # FastAPI's `{"detail":"Not Found"}`. Catch the raise instead.
+            try:
+                return await super().get_response(path, scope)
+            except StarletteHTTPException as exc:
+                if exc.status_code == 404:
+                    return await super().get_response("index.html", scope)
+                raise
 
     app.mount("/", _SPAStaticFiles(directory=str(_STATIC_DIR), html=True), name="static")
 else:
