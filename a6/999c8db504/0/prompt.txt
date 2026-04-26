@@ -1,0 +1,11 @@
+create new branch, update readme.md at the top so it has this linke very prominently, with like 2 arrows pointing to it and big test,
+
+https://berlin-hackathon-2026-production.up.railway.app/
+
+---
+
+git pull develop, then branch off that
+
+---
+
+push branch to develop
