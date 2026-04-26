@@ -23,9 +23,8 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv
 
 # Install Python deps first (better layer caching).
-# .python-version is copied so uv auto-downloads the pinned interpreter (3.14)
-# rather than falling back to the system Python (3.12 on noble) and breaking
-# the locked wheel set.
+# .python-version pins 3.12 to match the playwright/python image's system Python
+# AND to avoid building pyiceberg from C source (no cp314 wheels yet).
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
 RUN uv sync --frozen --no-dev
 
