@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.5.6",
+  "checkpoint_id": "dddd734ab01f",
+  "session_id": "875c8e0b-ffef-40a2-8d95-30ce98a68067",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-26T10:08:20.767565Z",
+  "branch": "karl/readme-update",
+  "checkpoints_count": 3,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-7[1m]",
+  "turn_id": "90c233c0bfd2",
+  "token_usage": {
+    "input_tokens": 12715,
+    "cache_creation_tokens": 497522,
+    "cache_read_tokens": 1809801,
+    "output_tokens": 21477,
+    "api_call_count": 18
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 2054,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "hera-video-hackathon.pen": 2054
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2243,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2243,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 2,
+      "user_lines_removed": 2,
+      "agent_lines_added": 2418,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "README.md": 2
+      },
+      "user_removed_per_file": {
+        "README.md": 2
+      }
+    }
+  ]
+}
