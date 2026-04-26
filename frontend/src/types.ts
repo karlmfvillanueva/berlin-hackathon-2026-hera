@@ -130,6 +130,7 @@ export type JobStatus = "in-progress" | "success" | "failed";
 
 export type AppState =
   | { screen: "idle" }
+  | { screen: "preparing"; listing_url: string }
   | {
       screen: "storyboard";
       listing: ScrapedListing;

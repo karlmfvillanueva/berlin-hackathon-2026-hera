@@ -72,6 +72,10 @@ export function AgentApp() {
   async function handleGenerate(url: string) {
     setListingUrl(url)
     setSubmitting(true)
+    // Optimistic transition: leave the picker immediately so the user sees
+    // forward motion. Phase-1 takes ~10–20s and a silent grey-out on the
+    // picker reads like a broken click.
+    setState({ screen: "preparing", listing_url: url })
     try {
       const { listing, phase1 } = await postListing(url, outpaintEnabled)
       const overrides: Overrides = {
@@ -394,6 +398,11 @@ export function AgentApp() {
         </main>
       )}
 
+      {/* preparing — phase 1 (storyboard generation) is running */}
+      {state.screen === "preparing" && (
+        <PreparingScreen listingUrl={state.listing_url} onCancel={goIdle} />
+      )}
+
       {/* storyboard */}
       {state.screen === "storyboard" && (
         <Storyboard
@@ -467,5 +476,97 @@ export function AgentApp() {
         <ErrorState message={state.message} onRetry={goIdle} />
       )}
     </div>
+  )
+}
+
+/** Phase-1 loading screen. Cycles through scripted status lines so the user
+ *  has a sense of forward motion instead of staring at a static spinner for
+ *  ~15s while the multi-agent pipeline runs. The pacing is decoupled from the
+ *  actual backend progress (we don't get progress events) — it's an *honest*
+ *  list of stages the agent goes through, just timed to look right. */
+function PreparingScreen({
+  listingUrl,
+  onCancel,
+}: {
+  listingUrl: string
+  onCancel: () => void
+}) {
+  const STAGES = [
+    "Reading the listing…",
+    "Watching the photos…",
+    "Parsing the reviews…",
+    "Finding your guest…",
+    "Drafting the storyboard…",
+  ] as const
+  const [stage, setStage] = useState(0)
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setStage((s) => (s + 1 < STAGES.length ? s + 1 : s))
+    }, 3500)
+    return () => window.clearInterval(interval)
+  }, [STAGES.length])
+
+  return (
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-8 px-6 py-16">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <p className="text-label text-muted-foreground">Phase 1</p>
+        <h2 className="text-display-lg">Building your storyboard.</h2>
+        <p className="text-body text-muted-foreground">
+          Multi-agent pipeline in motion. Usually 10–20 seconds.
+        </p>
+      </div>
+
+      <Card className="w-full max-w-lg p-6">
+        <ul className="flex flex-col gap-3">
+          {STAGES.map((label, i) => {
+            const done = i < stage
+            const active = i === stage
+            return (
+              <li key={label} className="flex items-center gap-3">
+                <span
+                  className={
+                    "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border " +
+                    (done
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : active
+                        ? "border-primary text-primary"
+                        : "border-border text-muted-foreground")
+                  }
+                  aria-hidden
+                >
+                  {done ? (
+                    <svg viewBox="0 0 12 12" className="h-3 w-3 fill-current">
+                      <path d="M10.28 3.22a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0L2.22 6.28a.75.75 0 1 1 1.06-1.06l1.97 1.97 3.97-3.97a.75.75 0 0 1 1.06 0z" />
+                    </svg>
+                  ) : active ? (
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+                  ) : null}
+                </span>
+                <span
+                  className={
+                    "text-body-sm " +
+                    (done
+                      ? "text-foreground"
+                      : active
+                        ? "text-foreground"
+                        : "text-muted-foreground")
+                  }
+                >
+                  {label}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+        <p className="mt-5 truncate border-t border-border pt-4 text-body-sm text-muted-foreground">
+          <span className="text-foreground">Listing:</span> {listingUrl}
+        </p>
+      </Card>
+
+      <Button onClick={onCancel} variant="link">
+        Cancel
+      </Button>
+    </main>
   )
 }
