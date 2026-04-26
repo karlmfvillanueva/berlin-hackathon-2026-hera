@@ -39,6 +39,10 @@ export function AgentApp() {
   // input stays hidden. The URL input flashes in for team members once /api/me
   // resolves; that's the right tradeoff vs. a hidden picker for everyone else.
   const isTeam = me?.is_team_member ?? false
+  // Demo mode is the default for everyone. Team members can toggle it off to
+  // get the free-text URL input back; non-team users never see the toggle, so
+  // their state is effectively pinned to ON.
+  const [demoMode, setDemoMode] = useState(true)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [scriptStep, setScriptStep] = useState(0)
   const [outpaintEnabled, setOutpaintEnabled] = useState(false)
@@ -294,6 +298,57 @@ export function AgentApp() {
           ? 3
           : 4
 
+  /** Pill toggle for team members to flip between curated demo cards and the
+   *  free-text URL flow. Inline component because nothing else needs it. */
+  function DemoModeToggle({
+    value,
+    onChange,
+    disabled,
+  }: {
+    value: boolean
+    onChange: (v: boolean) => void
+    disabled?: boolean
+  }) {
+    return (
+      <div
+        className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 text-body-sm"
+        role="tablist"
+        aria-label="Input mode"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={value}
+          onClick={() => onChange(true)}
+          disabled={disabled}
+          className={
+            "rounded-full px-3 py-1.5 transition-colors " +
+            (value
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground")
+          }
+        >
+          Demo listings
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!value}
+          onClick={() => onChange(false)}
+          disabled={disabled}
+          className={
+            "rounded-full px-3 py-1.5 transition-colors " +
+            (!value
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground")
+          }
+        >
+          Custom URL
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-background font-sans text-foreground">
       <Header />
@@ -301,18 +356,25 @@ export function AgentApp() {
       {/* idle */}
       {state.screen === "idle" && (
         <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center gap-10 px-6 py-12">
-          <div className="flex flex-col items-center gap-3 text-center">
+          <div className="flex w-full flex-col items-center gap-3 text-center">
             <h1 className="text-display-xl">
               Turn an Airbnb listing into a 15-second video.
             </h1>
             <p className="text-body max-w-prose text-muted-foreground">
-              {isTeam
-                ? "Paste a link or pick a pre-loaded demo listing. The agent picks the hook, the angle, and the pacing."
-                : "Pick a demo listing. The agent picks the hook, the angle, and the pacing."}
+              {demoMode
+                ? "Pick a demo listing. The agent picks the hook, the angle, and the pacing."
+                : "Paste a link. The agent picks the hook, the angle, and the pacing."}
             </p>
+            {isTeam && (
+              <DemoModeToggle
+                value={demoMode}
+                onChange={setDemoMode}
+                disabled={submitting}
+              />
+            )}
           </div>
 
-          {me ? (
+          {demoMode && me ? (
             <DemoListingPicker
               listings={me.demo_listings}
               onPick={handleGenerate}
@@ -321,7 +383,7 @@ export function AgentApp() {
             />
           ) : null}
 
-          {isTeam && (
+          {!demoMode && isTeam && (
             <UrlInput
               onSubmit={handleGenerate}
               loading={submitting}
