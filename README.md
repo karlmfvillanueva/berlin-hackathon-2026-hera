@@ -6,12 +6,18 @@
 
 **Drop a listing URL. The agent watches the photos, reads the reviews, finds your guest, and directs a 30-second short film about your place — with a stance on what to show first.**
 
+### ▶ [**Try it live — argus.up.railway.app**](https://berlin-hackathon-2026-production.up.railway.app)
+
+*Paste any Airbnb URL. The agent does the rest. No signup needed for the demo.*
+
+[![Live Demo](https://img.shields.io/badge/▶_try_it_live-argus.up.railway.app-22c55e?style=for-the-badge)](https://berlin-hackathon-2026-production.up.railway.app)
+
 [![Hackathon](https://img.shields.io/badge/Berlin_Tech_Europe-Hackathon_2026-F94B12?style=flat-square)](https://www.notion.so/karlvillanueva/Berlin-Hackathon-2026-34d942178bfd8059b2ecc0b41790cf44)
 [![Track](https://img.shields.io/badge/Track-Hera_·_AI_Agents_for_Video-14201B?style=flat-square)](https://hera.video/?utm_source=luma)
 [![Stack](https://img.shields.io/badge/stack-FastAPI_·_React_·_Vertex_AI_·_Hera-2D4A3E?style=flat-square)](#-architecture)
 [![Status](https://img.shields.io/badge/status-Phase_2_shipped-22c55e?style=flat-square)](#-roadmap)
 
-[ Watch the 60s demo ](#-the-60-second-demo) · [ How it thinks ](#-how-it-thinks) · [ Architecture ](#-architecture) · [ Quickstart ](#-quickstart) · [ Roadmap ](#-roadmap)
+[ Try it live ](https://berlin-hackathon-2026-production.up.railway.app) · [ Watch the 60s demo ](#-the-60-second-demo) · [ How it thinks ](#-how-it-thinks) · [ Architecture ](#-architecture) · [ Quickstart ](#-quickstart) · [ Roadmap ](#-roadmap)
 
 </div>
 
@@ -126,8 +132,6 @@ sequenceDiagram
 ### Layer breakdown
 
 The host can drill into every pass live in the app. The system is fully introspectable.
-
-![Under the hood — React Frontend and FastAPI Backend cards expanded with their dependencies](docs/readme/under-the-hood.jpg)
 
 | Layer | Tech | Why |
 |---|---|---|
