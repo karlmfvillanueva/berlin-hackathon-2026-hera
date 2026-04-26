@@ -86,7 +86,7 @@ function DemoListingCard({
           <h3 className="line-clamp-2 text-body font-semibold leading-tight">
             {listing.title}
           </h3>
-          {listing.location ? (
+          {listing.location && !listing.location.startsWith("★") ? (
             <p className="line-clamp-1 text-body-sm text-muted-foreground">
               {listing.location}
             </p>
