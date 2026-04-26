@@ -47,23 +47,21 @@ export function Nav() {
           ))}
         </nav>
 
-        <AuthButtons scrolled={scrolled} />
+        <AuthButtons />
       </div>
     </header>
   )
 }
 
 /**
- * Auth-aware nav cluster. Two visual modes so it reads on both the dark hero
- * (transparent header, white text) and the scrolled-light header (background
- * blur). When unauthenticated: Sign in (ghost) + Sign up (primary). When
- * authenticated: Dashboard (primary) + Sign out (ghost).
+ * Auth-aware nav cluster. The header sits on the cream body background (NOT
+ * on the dark hero), so all states use dark-on-light styling. One CTA only —
+ * /login already exposes the "Create an account" path, so there's no value in
+ * showing both Sign in + Sign up here.
  */
-function AuthButtons({ scrolled }: { scrolled: boolean }) {
+function AuthButtons() {
   const { user, loading, configured, signOut } = useAuth()
 
-  // Auth not wired up at all → fall back to the original "Try a listing" CTA
-  // so the page is still clickable in dev / no-Supabase mode.
   if (!configured) {
     return (
       <a
@@ -75,27 +73,18 @@ function AuthButtons({ scrolled }: { scrolled: boolean }) {
     )
   }
 
-  if (loading) return <div className="h-9 w-32" aria-hidden />
+  if (loading) return <div className="h-9 w-24" aria-hidden />
 
-  const ghostClass = cn(
-    "inline-flex items-center rounded-sm border px-3 py-2 text-body-sm font-medium transition-colors",
-    scrolled
-      ? "border-border text-foreground hover:bg-muted"
-      : "border-white/25 text-white hover:bg-white/10",
-  )
   const primaryClass =
     "inline-flex items-center rounded-sm bg-primary px-4 py-2 text-body-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+  const ghostClass =
+    "inline-flex items-center rounded-sm border border-border bg-card/60 px-3 py-2 text-body-sm font-medium text-foreground transition-colors hover:bg-muted"
 
   if (!user) {
     return (
-      <div className="flex items-center gap-2">
-        <Link to="/login" className={ghostClass}>
-          Sign in
-        </Link>
-        <Link to="/signup" className={primaryClass}>
-          Sign up
-        </Link>
-      </div>
+      <Link to="/login" className={primaryClass}>
+        Sign in
+      </Link>
     )
   }
 
