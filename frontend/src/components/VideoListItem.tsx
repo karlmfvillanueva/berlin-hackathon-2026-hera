@@ -1,26 +1,46 @@
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import type { DashboardVideo } from "@/api/dashboard"
 
-function thumbnailUrl(youtubeId: string | null): string | null {
+// Demo seed videos use synthetic `YT_<hex>` IDs (see migration 005). YouTube
+// returns its 'no thumbnail' grey placeholder for those with HTTP 200, so the
+// onError handler never fires — detect them up front instead.
+function realThumbnailUrl(youtubeId: string | null): string | null {
   if (!youtubeId) return null
+  if (youtubeId.startsWith("YT_")) return null
   return `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
 }
 
+function fallbackThumbnailUrl(videoId: string): string {
+  return `https://picsum.photos/seed/${encodeURIComponent(videoId)}/640/360`
+}
+
 export function VideoListItem({ video }: { video: DashboardVideo }) {
-  const thumb = thumbnailUrl(video.youtube_video_id)
+  const initialSrc = realThumbnailUrl(video.youtube_video_id) ?? fallbackThumbnailUrl(video.id)
+  const [src, setSrc] = useState(initialSrc)
+  const [loaded, setLoaded] = useState(false)
+
   return (
     <Link to={`/dashboard/v/${video.id}`} className="block">
       <Card className="hover:bg-muted/40 flex items-center gap-4 p-4 transition-colors">
         <div className="bg-muted relative h-20 w-32 shrink-0 overflow-hidden rounded">
-          {thumb ? (
-            <img src={thumb} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="text-body-sm text-muted-foreground flex h-full items-center justify-center">
-              Not yet on YT
-            </div>
-          )}
+          <img
+            src={src}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setLoaded(true)}
+            onError={() => {
+              const fallback = fallbackThumbnailUrl(video.id)
+              if (src !== fallback) {
+                setSrc(fallback)
+                setLoaded(false)
+              }
+            }}
+            className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+          />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-body truncate font-medium">
@@ -48,5 +68,24 @@ export function VideoListItem({ video }: { video: DashboardVideo }) {
         </div>
       </Card>
     </Link>
+  )
+}
+
+export function VideoListItemSkeleton() {
+  return (
+    <Card className="flex animate-pulse items-center gap-4 p-4">
+      <div className="bg-muted h-20 w-32 shrink-0 rounded" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="bg-muted h-4 w-2/3 rounded" />
+        <div className="flex gap-2">
+          <div className="bg-muted h-5 w-20 rounded-full" />
+          <div className="bg-muted h-5 w-14 rounded-full" />
+        </div>
+      </div>
+      <div className="space-y-2 text-right">
+        <div className="bg-muted ml-auto h-6 w-16 rounded" />
+        <div className="bg-muted ml-auto h-3 w-10 rounded" />
+      </div>
+    </Card>
   )
 }

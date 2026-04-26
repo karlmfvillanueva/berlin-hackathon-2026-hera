@@ -8,7 +8,7 @@ import type {
   DashboardVideo,
 } from "@/api/dashboard"
 import { MetricsCard } from "@/components/MetricsCard"
-import { VideoListItem } from "@/components/VideoListItem"
+import { VideoListItem, VideoListItemSkeleton } from "@/components/VideoListItem"
 import { BeliefEvolutionCard } from "@/components/BeliefEvolutionCard"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -81,7 +81,7 @@ export function Dashboard() {
         </Card>
       )}
 
-      {aggregate && (
+      {aggregate ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <MetricsCard
             label="Total videos"
@@ -98,11 +98,29 @@ export function Dashboard() {
             value={aggregate.top_performer_id ? "see list ↓" : "—"}
           />
         </section>
+      ) : (
+        videos === null && (
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} className="flex animate-pulse flex-col gap-3 p-5">
+                <div className="bg-muted h-3 w-24 rounded" />
+                <div className="bg-muted h-8 w-32 rounded" />
+                <div className="bg-muted h-3 w-40 rounded" />
+              </Card>
+            ))}
+          </section>
+        )
       )}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-body font-semibold">Posts</h2>
-        {videos === null && <p className="text-body-sm text-muted-foreground">Loading…</p>}
+        {videos === null && (
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <VideoListItemSkeleton key={i} />
+            ))}
+          </div>
+        )}
         {videos !== null && videos.length === 0 && (
           <Card className="flex flex-col items-start gap-3 p-6">
             <p className="text-body-sm text-muted-foreground">
