@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
+import { Plus } from "lucide-react"
 import { getDashboard, getBeliefEvolution } from "@/api/dashboard"
 import type {
   BeliefEvolutionItem,
@@ -49,7 +50,16 @@ export function Dashboard() {
             Posts, performance, and belief shifts.
           </p>
         </div>
-        <ConnectYouTubeBadge />
+        <div className="flex items-center gap-3">
+          <ConnectYouTubeBadge />
+          <Link
+            to="/app"
+            className="inline-flex items-center gap-1.5 rounded-sm bg-primary px-4 py-2 text-body-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            New film
+          </Link>
+        </div>
       </header>
 
       {ytConnected && (
@@ -94,10 +104,17 @@ export function Dashboard() {
         <h2 className="text-body font-semibold">Posts</h2>
         {videos === null && <p className="text-body-sm text-muted-foreground">Loading…</p>}
         {videos !== null && videos.length === 0 && (
-          <Card className="p-6">
+          <Card className="flex flex-col items-start gap-3 p-6">
             <p className="text-body-sm text-muted-foreground">
-              No videos yet. Generate one and publish it to YouTube.
+              No videos yet. Drop an Airbnb URL and let the agent direct one.
             </p>
+            <Link
+              to="/app"
+              className="inline-flex items-center gap-1.5 rounded-sm bg-primary px-4 py-2 text-body-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              Make my first film
+            </Link>
           </Card>
         )}
         {videos?.map((v) => <VideoListItem key={v.id} video={v} />)}
